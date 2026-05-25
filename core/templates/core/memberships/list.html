@@ -1,0 +1,113 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Membresías</h1>
+    <a class="btn btn-primary" href="{% url 'membership_add' %}"><i class="fas fa-plus"></i> Nueva membresía</a>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <form method="get" class="form-inline flex-wrap">
+            <input type="search" name="q" value="{{ query }}" class="form-control mr-2 mb-2" placeholder="Buscar por nombre o DNI">
+            <select name="status" class="form-control mr-2 mb-2">
+                <option value="">Todos los estados</option>
+                <option value="debt" {% if status_filter == 'debt' %}selected{% endif %}>Deuda</option>
+                <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completada</option>
+            </select>
+            <button class="btn btn-secondary mb-2" type="submit">Filtrar</button>
+        </form>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Alumna</th>
+                        <th>DNI</th>
+                        <th>Periodo</th>
+                        <th>Monto</th>
+                        <th>Pagado</th>
+                        <th>Saldo</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in memberships %}
+                    <tr>
+                        <td>{{ m.student.name }}</td>
+                        <td>{{ m.student.dni|default:"—" }}</td>
+                        <td>{{ m.start_date|date:"d/m/Y" }} — {{ m.end_date|date:"d/m/Y" }}</td>
+                        <td>S/ {{ m.amount_due }}</td>
+                        <td>S/ {{ m.paid_total }}</td>
+                        <td>S/ {{ m.balance }}</td>
+                        <td>
+                            {% if m.status == 'completed' %}
+                            <span class="badge badge-success">Completada</span>
+                            {% else %}
+                            <span class="badge badge-warning">Deuda</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-nowrap">
+                            <a class="btn btn-sm btn-info" href="{% url 'membership_edit' m.id %}">Editar</a>
+                            <a class="btn btn-sm btn-primary" href="{% url 'membership_renew' m.id %}">Renovar</a>
+                            <a class="btn btn-sm btn-success" href="{% url 'membership_payments' m.id %}">Ver pagos</a>
+                            {% if not is_secretary %}
+                            <form method="post" action="{% url 'membership_delete' m.id %}" class="d-inline" onsubmit="return confirm('¿Eliminar esta membresía y sus pagos?');">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-danger" type="submit">Eliminar</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8">No hay membresías registradas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if create_mode or edit_mode %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">{% if edit_mode %}Editar membresía{% else %}Registrar membresía manual{% endif %}</h6>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+            {% if edit_mode %}
+            <div class="form-group mb-3">
+                <label>Alumna</label>
+                <p class="form-control-plaintext font-weight-bold">{{ membership.student.name }}{% if membership.student.dni %} — DNI: {{ membership.student.dni }}{% endif %}</p>
+            </div>
+            {% else %}
+            <div class="form-group mb-3 position-relative">
+                {{ form.student_id }}
+                {{ form.student_search.label_tag }}
+                {{ form.student_search }}
+                <div id="student-search-results" class="list-group position-absolute w-100 shadow d-none" style="z-index: 1000; max-height: 220px; overflow-y: auto;"></div>
+                {% if form.student_search.errors %}<div class="text-danger small">{{ form.student_search.errors }}</div>{% endif %}
+            </div>
+            {% endif %}
+
+            <div class="form-row">
+                <div class="form-group col-md-4">{{ form.start_date.label_tag }} {{ form.start_date }}</div>
+                <div class="form-group col-md-4">{{ form.end_date.label_tag }} {{ form.end_date }}</div>
+                <div class="form-group col-md-4">{{ form.amount_due.label_tag }} {{ form.amount_due }}</div>
+            </div>
+            <div class="form-group">{{ form.notes.label_tag }} {{ form.notes }}</div>
+
+            <button class="btn btn-primary" type="submit">Guardar</button>
+            <a class="btn btn-secondary" href="{% url 'memberships_list' %}">Cancelar</a>
+        </form>
+    </div>
+</div>
+{% if not edit_mode %}
+{% include 'core/memberships/_student_search_script.html' %}
+{% endif %}
+{% endif %}
+{% endblock %}

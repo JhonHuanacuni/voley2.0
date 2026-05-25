@@ -1,0 +1,5 @@
+Django>=5.1,<6
+openpyxl
+qrcode[pil]
+pypdf
+reportlab

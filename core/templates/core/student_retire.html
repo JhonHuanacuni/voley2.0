@@ -1,0 +1,32 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h1 class="h3 mb-0 text-gray-800">Retirar alumna</h1>
+        <p class="text-muted">Confirma los datos y registra el motivo del retiro.</p>
+    </div>
+    <a class="btn btn-secondary" href="{% url 'students_list' %}">Volver a alumnas</a>
+</div>
+<div class="card shadow mb-4">
+    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">{{ student.name }}</h6></div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Nombre</label>
+                <p class="form-control-plaintext">{{ student.name }}</p>
+            </div>
+            <div class="form-group">
+                <label for="retired_at">Fecha de retiro</label>
+                <input type="date" id="retired_at" name="retired_at" class="form-control" value="{{ today }}" required>
+            </div>
+            <div class="form-group">
+                <label for="reason">Motivo / observación</label>
+                <textarea id="reason" name="reason" class="form-control" rows="3" placeholder="Escribe el motivo del retiro..."></textarea>
+            </div>
+            <button class="btn btn-warning" type="submit">Confirmar retiro</button>
+            <a class="btn btn-secondary" href="{% url 'students_list' %}">Cancelar</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

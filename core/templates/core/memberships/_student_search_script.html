@@ -1,0 +1,60 @@
+<script>
+(function () {
+    const searchInput = document.getElementById('student-search');
+    const studentIdInput = document.getElementById('id_student_id');
+    const resultsBox = document.getElementById('student-search-results');
+    if (!searchInput || !studentIdInput || !resultsBox) return;
+
+    let timer = null;
+
+    function hideResults() {
+        resultsBox.innerHTML = '';
+        resultsBox.classList.add('d-none');
+    }
+
+    function selectStudent(id, label) {
+        studentIdInput.value = id;
+        searchInput.value = label;
+        hideResults();
+    }
+
+    searchInput.addEventListener('input', function () {
+        const q = searchInput.value.trim();
+        if (q.length < 3) {
+            studentIdInput.value = '';
+            hideResults();
+            return;
+        }
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+            fetch('{% url "membership_student_search" %}?q=' + encodeURIComponent(q))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    resultsBox.innerHTML = '';
+                    if (!data.results || !data.results.length) {
+                        resultsBox.innerHTML = '<div class="list-group-item text-muted">Sin coincidencias</div>';
+                        resultsBox.classList.remove('d-none');
+                        return;
+                    }
+                    data.results.forEach(function (item) {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'list-group-item list-group-item-action';
+                        btn.textContent = item.label;
+                        btn.addEventListener('click', function () {
+                            selectStudent(item.id, item.label);
+                        });
+                        resultsBox.appendChild(btn);
+                    });
+                    resultsBox.classList.remove('d-none');
+                });
+        }, 250);
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!resultsBox.contains(e.target) && e.target !== searchInput) {
+            hideResults();
+        }
+    });
+})();
+</script>

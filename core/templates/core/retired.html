@@ -1,0 +1,33 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Retiradas</h1>
+</div>
+<div class="card shadow mb-4">
+    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Alumnas retiradas</h6></div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead><tr><th>Nombre</th><th>Contacto</th><th>Fecha retiro</th><th>Motivo</th><th>Acciones</th></tr></thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr>
+                        <td>{{ student.name }}</td>
+                        <td>{{ student.contact }}</td>
+                        <td>{{ student.retired_at }}</td>
+                        <td>{{ student.retired_reason }}</td>
+                        <td>
+                            <form method="post" action="{% url 'student_reactivate' student.id %}">{% csrf_token %}
+                                <button class="btn btn-sm btn-success">Reactivar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5">No hay alumnas retiradas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

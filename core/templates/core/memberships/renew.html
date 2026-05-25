@@ -1,0 +1,30 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Renovar membresía</h1>
+    <a class="btn btn-secondary" href="{% url 'memberships_list' %}">Volver</a>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">{{ membership.student.name }}</h6>
+    </div>
+    <div class="card-body">
+        <p class="text-muted mb-3">
+            Membresía actual: {{ membership.start_date|date:"d/m/Y" }} — {{ membership.end_date|date:"d/m/Y" }}
+            ({{ membership.get_status_display }})
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-row">
+                <div class="form-group col-md-4">{{ form.start_date.label_tag }} {{ form.start_date }}</div>
+                <div class="form-group col-md-4">{{ form.end_date.label_tag }} {{ form.end_date }}</div>
+                <div class="form-group col-md-4">{{ form.amount_due.label_tag }} {{ form.amount_due }}</div>
+            </div>
+            <div class="form-group">{{ form.notes.label_tag }} {{ form.notes }}</div>
+            <button class="btn btn-primary" type="submit">Crear renovación</button>
+            <a class="btn btn-secondary" href="{% url 'memberships_list' %}">Cancelar</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

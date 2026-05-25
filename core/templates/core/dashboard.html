@@ -1,0 +1,222 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
+</div>
+<div class="row">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Alumnas activas</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_count }}</div>
+                    </div>
+                    <div class="col-auto"><i class="fas fa-user-check fa-2x text-gray-300"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Matrícula inactiva</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ inactive_enrollment }}</div>
+                    </div>
+                    <div class="col-auto"><i class="fas fa-user-clock fa-2x text-gray-300"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Retiradas</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ retired_count }}</div>
+                    </div>
+                    <div class="col-auto"><i class="fas fa-user-slash fa-2x text-gray-300"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% if not is_secretary %}
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Pagos totales del mes</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">S/ {{ payments_total|default:'0.00' }}</div>
+                    </div>
+                    <div class="col-auto"><i class="fas fa-hand-holding-dollar fa-2x text-gray-300"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+<div class="row">
+    {% if not is_secretary %}
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-secondary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">Presentes este mes</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ attendance_month_present }}</div>
+                    </div>
+                    <div class="col-auto"><i class="fas fa-user-check fa-2x text-gray-300"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-secondary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">Ausentes este mes</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ attendance_month_absent }}</div>
+                    </div>
+                    <div class="col-auto"><i class="fas fa-user-times fa-2x text-gray-300"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-dark shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-dark text-uppercase mb-1">Cumpleaños hoy</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ birthdays_today }}</div>
+                    </div>
+                    <div class="col-auto"><i class="fas fa-birthday-cake fa-2x text-gray-300"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-danger shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Con deuda estimada</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ debt_count }}</div>
+                    </div>
+                    <div class="col-auto"><i class="fas fa-exclamation-circle fa-2x text-gray-300"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 mb-4">
+        <div class="alert alert-info">
+            
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% if not is_secretary %}
+<div class="row mb-4">
+    <div class="col-lg-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Pagos por mes</h6>
+                <div class="form-group mb-0">
+                    <select id="paymentRange" class="form-control form-control-sm">
+                        <option value="6" selected>Últimos 6 meses</option>
+                        <option value="3">Últimos 3 meses</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-area">
+                    <canvas id="paymentsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% if is_secretary %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Últimas alumnas</h6></div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr><th>Nombre</th><th>Turno</th><th>Cuota</th><th>Inscripción</th><th>Retirado</th></tr>
+                </thead>
+                <tbody>
+                    {% for student in students|slice:":5" %}
+                    <tr>
+                        <td>{{ student.name }}</td>
+                        <td>{{ student.get_shift_display }}</td>
+                        <td>{% if student.monthly_fee %}S/ {{ student.monthly_fee }}{% else %}—{% endif %}</td>
+                        <td>{{ student.enrollment_date }}</td>
+                        <td>{% if student.retired %}Sí{% else %}No{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5">No hay alumnas registradas aún.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const paymentsByMonthLabels = {{ payments_by_month_labels|safe }};
+    const paymentsByMonthData = {{ payments_by_month_data|safe }};
+    const ctxPayments = document.getElementById('paymentsChart');
+    if (ctxPayments) {
+        const paymentsChart = new Chart(ctxPayments, {
+            type: 'bar',
+            data: {
+                labels: paymentsByMonthLabels,
+                datasets: [{
+                    label: 'S/ Pagos',
+                    data: paymentsByMonthData,
+                    backgroundColor: 'rgba(78, 115, 223, 0.7)',
+                    borderColor: 'rgba(78, 115, 223, 1)',
+                    borderWidth: 1,
+                }],
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'S/ ' + value;
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        const paymentRange = document.getElementById('paymentRange');
+        paymentRange.addEventListener('change', function() {
+            const months = parseInt(this.value, 10);
+            const labels = paymentsByMonthLabels.slice(-months);
+            const data = paymentsByMonthData.slice(-months);
+            paymentsChart.data.labels = labels;
+            paymentsChart.data.datasets[0].data = data;
+            paymentsChart.update();
+        });
+    }
+</script>{% endblock %}

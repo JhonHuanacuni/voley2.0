@@ -1,0 +1,66 @@
+<ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+    <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{% url 'dashboard' %}">
+        <div class="sidebar-brand-icon rotate-n-15">
+            <i class="fas fa-volleyball-ball"></i>
+        </div>
+        <div class="sidebar-brand-text mx-3">VITA VOLEY</div>
+    </a>
+    <hr class="sidebar-divider my-0">
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'dashboard' %}">
+            <i class="fas fa-fw fa-tachometer-alt"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+    <hr class="sidebar-divider">
+    <div class="sidebar-heading">Academia</div>
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'students_list' %}">
+            <i class="fas fa-fw fa-users"></i>
+            <span>Alumnas</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'attendance' %}">
+            <i class="fas fa-fw fa-calendar-check"></i>
+            <span>Asistencia</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseMemberships"
+           aria-expanded="false" aria-controls="collapseMemberships">
+            <i class="fas fa-fw fa-id-card"></i>
+            <span>Membresías</span>
+        </a>
+        <div id="collapseMemberships" class="collapse" data-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
+                <a class="collapse-item" href="{% url 'memberships_list' %}">Listado de membresías</a>
+                <a class="collapse-item" href="{% url 'membership_payments_list' %}">Pagos</a>
+            </div>
+        </div>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'retired_list' %}">
+            <i class="fas fa-fw fa-user-slash"></i>
+            <span>Retiradas</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'reports' %}">
+            <i class="fas fa-fw fa-file-download"></i>
+            <span>Reportes</span>
+        </a>
+    </li>
+    {% if is_admin %}
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'shifts_list' %}">
+            <i class="fas fa-fw fa-exchange-alt"></i>
+            <span>Mantenedor de Turnos</span>
+        </a>
+    </li>
+    {% endif %}
+    <hr class="sidebar-divider d-none d-md-block">
+    <div class="text-center d-none d-md-inline">
+        <button class="rounded-circle border-0" id="sidebarToggle"></button>
+    </div>
+</ul>

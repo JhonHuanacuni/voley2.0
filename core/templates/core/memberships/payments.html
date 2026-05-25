@@ -1,0 +1,75 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Pagos de membresía</h1>
+    <a class="btn btn-secondary" href="{% url 'memberships_list' %}">Volver a membresías</a>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">{{ membership.student.name }}</h6>
+    </div>
+    <div class="card-body">
+        <p>
+            <strong>Periodo:</strong> {{ membership.start_date|date:"d/m/Y" }} — {{ membership.end_date|date:"d/m/Y" }}<br>
+            <strong>Monto:</strong> S/ {{ membership.amount_due }} |
+            <strong>Pagado:</strong> S/ {{ membership.paid_total }} |
+            <strong>Saldo:</strong> S/ {{ membership.balance }} |
+            <strong>Estado:</strong>
+            {% if membership.status == 'completed' %}
+            <span class="badge badge-success">Completada</span>
+            {% else %}
+            <span class="badge badge-warning">Deuda</span>
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-5 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Registrar pago</h6></div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form.membership.as_hidden }}
+                    <div class="form-group">{{ form.date.label_tag }} {{ form.date }}</div>
+                    <div class="form-group">{{ form.amount.label_tag }} {{ form.amount }}</div>
+                    <div class="form-group">{{ form.method.label_tag }} {{ form.method }}</div>
+                    <button class="btn btn-primary" type="submit">Guardar pago</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Historial</h6></div>
+            <div class="card-body">
+                <table class="table table-bordered">
+                    <thead><tr><th>Fecha</th><th>Monto</th><th>Método</th><th>Acciones</th></tr></thead>
+                    <tbody>
+                        {% for payment in payments %}
+                        <tr>
+                            <td>{{ payment.date|date:"d/m/Y" }}</td>
+                            <td>S/ {{ payment.amount }}</td>
+                            <td>{{ payment.get_method_display }}</td>
+                            <td>
+                                <a class="btn btn-sm btn-success" href="{% url 'membership_payment_receipt' membership.id payment.id %}" target="_blank">Recibo</a>
+                                {% if not is_secretary %}
+                                <form method="post" action="{% url 'membership_payment_delete' membership.id payment.id %}" class="d-inline" onsubmit="return confirm('¿Eliminar este pago?');">
+                                    {% csrf_token %}
+                                    <button class="btn btn-sm btn-danger" type="submit">Eliminar</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4">Sin pagos registrados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends 'core/base.html' %}
+{% load core_tags %}
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Asistencia</h1>
+</div>
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Registro de asistencia</h6></div>
+            <div class="card-body">
+                <form method="get" class="form-row align-items-end mb-3">
+                    <div class="col">
+                        <label for="attendance_date">Fecha</label>
+                        <input type="date" id="attendance_date" name="date" class="form-control" value="{{ selected_date }}">
+                    </div>
+                    <div class="col">
+                        <label for="shift">Turno</label>
+                        <select id="shift" name="shift" class="form-control">
+                            <option value="">Todos</option>
+                            {% for value, label in shift_choices %}
+                            <option value="{{ value }}"{% if shift_filter == value %} selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-secondary">Filtrar</button>
+                    </div>
+                </form>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="attendance_date" value="{{ selected_date }}">
+                    <input type="hidden" name="shift" value="{{ shift_filter }}">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div></div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Alumna</th>
+                                    <th>Turno</th>
+                                    <th>Presente</th>
+                                    <th>Ausente</th>
+                                    <th>Tarde</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students %}
+                                <tr>
+                                    <td>{{ student.name }}</td>
+                                    <td>{{ student.get_shift_display }}</td>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="status_{{ student.id }}" id="present_{{ student.id }}" value="present"{% if attendance_map|get_item:student.id == 'present' %} checked{% endif %}>
+                                            <label class="form-check-label" for="present_{{ student.id }}">Sí</label>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="status_{{ student.id }}" id="absent_{{ student.id }}" value="absent"{% if attendance_map|get_item:student.id == 'absent' %} checked{% endif %}>
+                                            <label class="form-check-label" for="absent_{{ student.id }}">No</label>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="status_{{ student.id }}" id="late_{{ student.id }}" value="late"{% if attendance_map|get_item:student.id == 'late' %} checked{% endif %}>
+                                            <label class="form-check-label" for="late_{{ student.id }}">Tarde</label>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="5">No hay alumnas programadas para la fecha/turno seleccionado.</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <button class="btn btn-primary">Guardar asistencia</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Historial</h6></div>
+            <div class="card-body">
+                <form method="get" class="form-row align-items-end mb-3">
+                    <div class="col-md-4">
+                        <label for="history_student">Alumna</label>
+                        <select id="history_student" name="history_student" class="form-control">
+                            <option value="">Todas</option>
+                            {% for student in student_choices %}
+                            <option value="{{ student.id }}"{% if history_student == student.id|stringformat:'s' %} selected{% endif %}>{{ student.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="history_from">Desde</label>
+                        <input type="date" id="history_from" name="history_from" class="form-control" value="{{ history_from }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="history_to">Hasta</label>
+                        <input type="date" id="history_to" name="history_to" class="form-control" value="{{ history_to }}">
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-secondary btn-block">Filtrar</button>
+                    </div>
+                </form>
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead><tr><th>Alumna</th><th>Turno</th><th>Fecha</th><th>Estado</th></tr></thead>
+                        <tbody>
+                            {% for item in history %}
+                            <tr>
+                                <td>{{ item.student.name }}</td>
+                                <td>{{ item.student.get_shift_display }}</td>
+                                <td>{{ item.date }}</td>
+                                <td>
+                                    {{ item.get_status_display }}
+                                        {% if not is_secretary %}
+                                        <form method="post" action="{% url 'attendance_delete' item.id %}" class="d-inline ml-2">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="date" value="{{ selected_date }}">
+                                        <input type="hidden" name="shift" value="{{ shift_filter }}">
+                                        <input type="hidden" name="history_student" value="{{ history_student }}">
+                                        <input type="hidden" name="history_from" value="{{ history_from }}">
+                                        <input type="hidden" name="history_to" value="{{ history_to }}">
+                                        <button type="submit" class="btn btn-sm btn-danger">Quitar</button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4">No hay registros de asistencia.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

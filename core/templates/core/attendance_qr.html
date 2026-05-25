@@ -1,0 +1,95 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Marcar asistencia con QR</h1>
+        <a class="btn btn-secondary" href="{% url 'attendance' %}">Volver a Asistencia</a>
+    </div>
+
+    {% if status_message %}
+    <div class="alert alert-{{ status_level }}" role="alert">
+        {{ status_message }}
+    </div>
+    {% endif %}
+
+    <div class="mb-3">
+        <button id="btnIniciarCamara" class="btn btn-success">
+            <i class="fas fa-camera"></i> Activar cámara
+        </button>
+        <button id="btnDetenerCamara" class="btn btn-danger d-none">
+            <i class="fas fa-stop-circle"></i> Detener cámara
+        </button>
+    </div>
+
+    <div id="reader" style="width: 100%; max-width: 420px; margin: auto; display: none;"></div>
+
+    <form id="formQR" method="post" action="{% url 'attendance_qr' %}" style="display: none;">
+        {% csrf_token %}
+        <input type="hidden" name="qr_value" id="qrValue">
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    let qrScanner;
+
+    const btnIniciar = document.getElementById('btnIniciarCamara');
+    const btnDetener = document.getElementById('btnDetenerCamara');
+    const reader = document.getElementById('reader');
+    const qrValueInput = document.getElementById('qrValue');
+
+    btnIniciar.addEventListener('click', function () {
+        reader.style.display = 'block';
+        btnIniciar.classList.add('d-none');
+        btnDetener.classList.remove('d-none');
+
+        qrScanner = new Html5Qrcode('reader');
+
+        qrScanner.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: 250 },
+            (decodedText) => {
+                qrScanner.stop().then(() => {
+                    reader.style.display = 'none';
+                    btnDetener.classList.add('d-none');
+                    btnIniciar.classList.remove('d-none');
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'QR escaneado',
+                        text: `Valor detectado: ${decodedText}`,
+                        timer: 2200,
+                        showConfirmButton: false
+                    });
+
+                    qrValueInput.value = decodedText;
+                    document.getElementById('formQR').submit();
+                });
+            },
+            (error) => {
+                // Se ignoran errores de lectura mientras se escanea.
+            }
+        ).catch((err) => {
+            Swal.fire({
+                icon: 'error',
+                title: 'No se pudo iniciar la cámara',
+                text: 'Verifica los permisos del navegador y que la cámara esté disponible.'
+            });
+        });
+    });
+
+    btnDetener.addEventListener('click', function () {
+        if (qrScanner) {
+            qrScanner.stop().then(() => {
+                reader.style.display = 'none';
+                btnDetener.classList.add('d-none');
+                btnIniciar.classList.remove('d-none');
+            });
+        }
+    });
+</script>
+{% endblock %}

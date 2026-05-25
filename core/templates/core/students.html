@@ -1,0 +1,96 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Alumnas</h1>
+    <a class="btn btn-primary" href="{% url 'student_add' %}"><i class="fas fa-plus"></i> Nueva alumna</a>
+</div>
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <form method="get" class="form-inline">
+            <input type="search" name="q" value="{{ query }}" class="form-control mr-2" placeholder="Buscar por nombre, DNI, email o teléfono">
+            <button class="btn btn-secondary" type="submit">Buscar</button>
+        </form>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr><th>Nombre</th><th>Contacto</th><th>Turno</th><th>Días asist.</th><th>Matrícula</th><th>Días para venc.</th><th>Estado</th><th>Acciones</th></tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr>
+                        <td>{{ student.name }}</td>
+                        <td>{{ student.contact }}</td>
+                        <td>{{ student.get_shift_display }}</td>
+                        <td>{{ student.attendance_days_display }}</td>
+                        <td>{% if student.enrollment_status == 'active' %}Activa{% else %}Inactiva{% endif %}</td>
+                        <td>{{ student.membership_days_remaining_display }}</td>
+                        <td>{% if student.enrollment_status == 'active' %}Activa{% else %}Inactiva{% endif %}</td>
+                        <td>
+                            {% if student.whatsapp_url %}
+                                <a class="btn btn-sm btn-success" href="{{ student.whatsapp_url }}" target="_blank" rel="noreferrer">WhatsApp</a>
+                            {% else %}
+                                <button class="btn btn-sm btn-secondary" disabled>WhatsApp</button>
+                            {% endif %}
+                            <a class="btn btn-sm btn-info" href="{% url 'student_edit' student.id %}">Editar</a>
+                            <a class="btn btn-sm btn-warning" href="{% url 'student_retire' student.id %}">Retirar</a>
+                            {% if not is_secretary %}
+                            <form method="post" action="{% url 'student_delete' student.id %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-danger">Borrar</button></form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8">No se encontraron alumnas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% if create_mode or edit_mode %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">{% if create_mode %}Registrar alumna{% else %}Editar alumna{% endif %}</h6></div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row">
+                <div class="col-md-4 mb-3">{{ form.name.label_tag }} {{ form.name }}</div>
+                <div class="col-md-4 mb-3">{{ form.age.label_tag }} {{ form.age }}</div>
+                <div class="col-md-4 mb-3">{{ form.dni.label_tag }} {{ form.dni }}</div>
+
+                <div class="col-md-4 mb-3">{{ form.email.label_tag }} {{ form.email }}</div>
+                <div class="col-md-4 mb-3">{{ form.contact.label_tag }} {{ form.contact }}</div>
+                <div class="col-md-4 mb-3">{{ form.guardian.label_tag }} {{ form.guardian }}</div>
+
+                <div class="col-md-12 mb-3">{{ form.address.label_tag }} {{ form.address }}</div>
+
+                <div class="col-md-4 mb-3">{{ form.shift.label_tag }} {{ form.shift }}</div>
+                <div class="col-md-4 mb-3">{{ form.birth_date.label_tag }} {{ form.birth_date }}</div>
+                <div class="col-md-4 mb-3">{{ form.enrollment_date.label_tag }} {{ form.enrollment_date }}</div>
+                <div class="col-md-4 mb-3">{{ form.membership_start.label_tag }} {{ form.membership_start }}</div>
+                <div class="col-md-4 mb-3">{{ form.membership_end.label_tag }} {{ form.membership_end }}</div>
+
+                <div class="col-md-4 mb-3">{{ form.enrollment_status.label_tag }} {{ form.enrollment_status }}</div>
+                <div class="col-md-4 mb-3">{{ form.monthly_fee.label_tag }} {{ form.monthly_fee }}</div>
+
+                <div class="col-12 mb-3">
+                    <label class="d-block">Días de asistencia</label>
+                    <div>
+                        {% for checkbox in form.attendance_days %}
+                            <div class="form-check form-check-inline mr-2">
+                                {{ checkbox.tag }}
+                                <label class="form-check-label ml-1">{{ checkbox.choice_label }}</label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" type="submit">Guardar</button>
+            <a class="btn btn-secondary" href="{% url 'students_list' %}">Cancelar</a>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

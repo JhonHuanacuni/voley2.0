@@ -1,0 +1,14 @@
+<nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
+        <i class="fa fa-bars"></i>
+    </button>
+    <div class="d-flex align-items-center w-100 justify-content-between">
+        <h1 class="h3 mb-0 text-gray-800">VITA VOLEY</h1>
+        {% if user.is_authenticated %}
+        <div class="d-flex align-items-center">
+            <span class="mr-3 text-secondary">{{ request.user.username }} ({{ user_role|default:'Usuario' }})</span>
+            <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-secondary">Cerrar sesión</a>
+        </div>
+        {% endif %}
+    </div>
+</nav>

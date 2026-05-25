@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Nota de Venta - Academia Vita Voley</title>
+    <style>
+        @page { size: A4; margin: 1cm; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #333; background: white; font-size: 11px; }
+        .container { border: 2px solid #333; padding: 12px; background: white; }
+        .header-table { width: 100%; margin-bottom: 18px; border-bottom: 1px solid #ddd; padding-bottom: 12px; border-collapse: collapse; }
+        .header-table td { vertical-align: top; border: none; padding: 0; }
+        .logo-box { width: 70px; height: 70px; background: #f0f0f0; text-align: center; color: #999; font-size: 8px; line-height: 70px; }
+        .company-info h1 { font-size: 15px; color: #333; margin: 0 0 4px 0; }
+        .company-info p { font-size: 11px; color: #666; margin: 2px 0; }
+        .title-section { text-align: right; }
+        .doc-type { font-size: 13px; font-weight: bold; color: #333; border: 2px solid #333; padding: 6px 8px; }
+        .doc-date { font-size: 11px; margin-top: 8px; }
+        .client-table { width: 100%; margin-bottom: 16px; border-collapse: collapse; }
+        .client-table td { border: none; padding: 0 8px 8px 0; vertical-align: top; width: 50%; }
+        .client-table label { font-weight: bold; font-size: 11px; display: block; }
+        .client-table span { font-size: 11px; border-bottom: 1px solid #333; display: block; padding: 4px 6px; min-height: 14px; }
+        .details-table { width: 100%; margin: 18px 0; border-collapse: collapse; }
+        .details-table thead { background-color: #f5f5f5; }
+        .details-table th,
+        .details-table td { border: 1px solid #333; padding: 4px; font-size: 11px; }
+        .details-table th { font-weight: bold; text-align: left; }
+        .details-table .empty-row td { background-color: #fafafa; height: 22px; }
+        .details-table .total-row { background-color: #f5f5f5; font-weight: bold; font-size: 12px; }
+        .details-table .total-row td:first-child { text-align: right; padding-right: 8px; }
+        .amount-col { text-align: right; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Encabezado -->
+        <table class="header-table">
+            <tr>
+                <td style="width: 80px;">
+                    <div class="logo-box">LOGO</div>
+                </td>
+                <td style="width: 55%; padding-left: 10px;">
+                    <div class="company-info">
+                        <h1>ACADEMIA VITA VOLEY</h1>
+                        <p>Av. San Juan 741 San Juan de Miraflores</p>
+                        <p>@VOLEY VITA  908935924</p>
+                    </div>
+                </td>
+                <td style="width: 35%;">
+                    <div class="title-section">
+                        <div class="doc-type">NOTA DE VENTA</div>
+                        <div class="doc-date">
+                            <strong>FECHA</strong><br/>
+                            {{ payment.date|date:"d/m/Y" }}
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Información del Cliente -->
+        <table class="client-table">
+            <tr>
+                <td>
+                    <label>CLIENTE</label>
+                    <span>{{ student.name }}</span>
+                </td>
+                <td style="padding-right: 0;">
+                    <label>DNI</label>
+                    <span></span>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2" style="padding-right: 0;">
+                    <label>DIRECCIÓN</label>
+                    <span>{{ student.address }}</span>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <label>EMAIL</label>
+                    <span></span>
+                </td>
+                <td style="padding-right: 0;">
+                    <label>TELÉFONO</label>
+                    <span>{{ student.contact }}</span>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Tabla de Detalles -->
+        <table class="details-table">
+            <colgroup>
+                <col style="width: 70%;"/>
+                <col style="width: 30%;"/>
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>Descripción</th>
+                    <th class="amount-col">Monto</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Cuota mensual - {{ month_name }} {{ payment.date.year }}</td>
+                    <td class="amount-col">S/ {{ payment.amount|floatformat:2 }}</td>
+                </tr>
+                <tr class="empty-row">
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                </tr>
+                <tr class="empty-row">
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                </tr>
+                <tr class="empty-row">
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                </tr>
+                <tr class="total-row">
+                    <td>TOTAL</td>
+                    <td class="amount-col">S/ {{ payment.amount|floatformat:2 }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

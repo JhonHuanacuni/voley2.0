@@ -1,0 +1,125 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VITA VOLEY</title>
+    <link href="{% static 'vendor/fontawesome-free/css/all.min.css' %}" rel="stylesheet" type="text/css">
+    <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet" type="text/css">
+    <link href="{% static 'css/sb-admin-2.min.css' %}" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #D15181;
+            --primary-dark: #a41e69;
+            --secondary: #52484F;
+            --secondary-dark: #433a43;
+        }
+
+        body { font-family: 'Nunito', sans-serif; }
+        .sidebar-brand-text { font-size: 1rem; }
+        .content-card { margin-top: 1rem; }
+        .card .card-body small { color: #6c757d; }
+
+        .sidebar { position: relative; overflow: hidden; }
+        .sidebar::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: 1.5rem;
+            width: 120px;
+            height: 120px;
+            transform: translateX(-50%);
+            background-image: url("{% static 'img/logo.jpeg' %}");
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-size: cover;
+            border-radius: 50%;
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 0;
+            box-shadow: 0 0 0 1rem rgba(255,255,255,0.02);
+        }
+        .sidebar .sidebar-brand,
+        .sidebar .nav-item,
+        .sidebar .sidebar-heading,
+        .sidebar hr,
+        .sidebar .text-center {
+            position: relative;
+            z-index: 1;
+        }
+
+        .text-primary, .text-primary a { color: #D15181 !important; }
+        .text-secondary, .text-secondary a { color: #52484F !important; }
+
+        .bg-primary { background-color: #D15181 !important; }
+        .bg-primary:hover, .bg-primary:focus { background-color: #a41e69 !important; }
+        .btn-primary, .btn-primary:hover, .btn-primary:focus, .btn-primary:active { background-color: #D15181 !important; border-color: #D15181 !important; }
+        .btn-primary:hover, .btn-primary:focus, .btn-primary:active { background-color: #a41e69 !important; border-color: #8b1d63 !important; }
+        .border-left-primary, .border-bottom-primary, .border-top-primary, .border-right-primary { border-color: #D15181 !important; }
+        .badge-primary, .badge-primary:hover, .badge-primary:focus { background-color: #D15181 !important; color: #fff !important; }
+        .btn-outline-primary { color: #D15181 !important; border-color: #D15181 !important; }
+        .btn-outline-primary:hover, .btn-outline-primary:focus { color: #fff !important; background-color: #D15181 !important; border-color: #D15181 !important; }
+        .bg-gradient-primary { background-color: #D15181 !important; background-image: linear-gradient(180deg, #D15181 10%, #a41e69 100%) !important; }
+
+        .bg-secondary { background-color: #52484F !important; }
+        .bg-secondary:hover, .bg-secondary:focus { background-color: #433a43 !important; }
+        .btn-secondary, .btn-secondary:hover, .btn-secondary:focus, .btn-secondary:active { background-color: #52484F !important; border-color: #52484F !important; }
+        .btn-secondary:hover, .btn-secondary:focus, .btn-secondary:active { background-color: #433a43 !important; border-color: #3c333d !important; }
+        .border-left-secondary, .border-bottom-secondary, .border-top-secondary, .border-right-secondary { border-color: #52484F !important; }
+        .badge-secondary, .badge-secondary:hover, .badge-secondary:focus { background-color: #52484F !important; color: #fff !important; }
+        .btn-outline-secondary { color: #52484F !important; border-color: #52484F !important; }
+        .btn-outline-secondary:hover, .btn-outline-secondary:focus { color: #fff !important; background-color: #52484F !important; border-color: #52484F !important; }
+        .bg-gradient-secondary { background-color: #52484F !important; background-image: linear-gradient(180deg, #52484F 10%, #433a43 100%) !important; }
+    </style>
+    <style>
+        /* Larger checkbox for attendance days */
+        .form-check-input-lg {
+            width: 1.4rem;
+            height: 1.4rem;
+            margin-top: 0.15rem;
+            /* scale for consistent cross-browser size */
+            transform: scale(1.4);
+            -webkit-transform: scale(1.4);
+            vertical-align: middle;
+        }
+        .form-check-inline { margin-right: 0.6rem; padding-left: 30px; }
+        .form-check { padding-left: 30px; }
+        .form-check-label { font-size: 0.95rem; margin-left: 0.25rem; }
+        /* Highlight checked checkbox label */
+        .form-check-input:checked + .form-check-label {
+            background-color: #D15181;
+            color: #fff;
+            padding: 0.15rem 0.4rem;
+            border-radius: 0.25rem;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body id="page-top">
+<div id="wrapper">
+    {% if user.is_authenticated %}
+        {% include 'core/panel.html' %}
+        <div id="content-wrapper" class="d-flex flex-column">
+            <div id="content">
+                {% include 'core/header.html' %}
+                <div class="container-fluid">
+    {% else %}
+                <div class="container py-4">
+    {% endif %}
+                    {% block content %}{% endblock %}
+    {% if user.is_authenticated %}
+                </div>
+            </div>
+        </div>
+    {% else %}
+                </div>
+    {% endif %}
+</div>
+<script src="{% static 'vendor/jquery/jquery.min.js' %}"></script>
+<script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'vendor/jquery-easing/jquery.easing.min.js' %}"></script>
+<script src="{% static 'js/sb-admin-2.min.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
