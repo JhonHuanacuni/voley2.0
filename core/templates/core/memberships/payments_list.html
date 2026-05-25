@@ -71,6 +71,13 @@
                                 {% if payment.membership %}
                                 <a class="btn btn-sm btn-success" href="{% url 'membership_payment_receipt' payment.membership.id payment.id %}" target="_blank">Recibo</a>
                                 {% endif %}
+                                {% if payment.student.whatsapp_url and payment.membership %}
+                                <button type="button" class="btn btn-sm btn-success send-receipt" data-receipt-url="{% url 'membership_payment_receipt' payment.membership.id payment.id %}" data-whatsapp-url="{{ payment.student.whatsapp_url }}" data-student-name="{{ payment.student.name }}">
+                                    Enviar
+                                </button>
+                                {% elif payment.membership %}
+                                <button type="button" class="btn btn-sm btn-secondary" disabled title="No hay WhatsApp válido">Enviar</button>
+                                {% endif %}
                                 <a class="btn btn-sm btn-info" href="{% url 'membership_payment_edit' payment.id %}">Editar</a>
                                 {% if not is_secretary %}
                                 <form method="post" action="{% url 'membership_payment_delete_global' payment.id %}" class="d-inline" onsubmit="return confirm('¿Eliminar pago?');">
@@ -89,4 +96,25 @@
         </div>
     </div>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.send-receipt').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var receiptUrl = button.dataset.receiptUrl;
+                var whatsappUrl = button.dataset.whatsappUrl;
+                var studentName = button.dataset.studentName || 'amiga';
+                if (!whatsappUrl) {
+                    alert('No hay un número de WhatsApp válido para esta alumna.');
+                    return;
+                }
+                var message = 'Hola ' + studentName + '! 👋 Somos VOLEY VITA y este es tu recibo. 😊 Gracias por tu pago. Si necesitas algo, escríbenos aquí.';
+                window.open(whatsappUrl + '?text=' + encodeURIComponent(message), '_blank');
+                var iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = receiptUrl;
+                document.body.appendChild(iframe);
+            });
+        });
+    });
+</script>
 {% endblock %}

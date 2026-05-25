@@ -134,6 +134,17 @@ class Student(models.Model):
         digits = ''.join(ch for ch in self.contact if ch.isdigit())
         if not digits:
             return None
+
+        # Normalize Peruvian mobile numbers if the local number is stored without country code.
+        if digits.startswith('00'):
+            digits = digits[2:]
+        if len(digits) == 9:
+            digits = '51' + digits
+        elif len(digits) == 10 and digits.startswith('0'):
+            digits = '51' + digits[1:]
+
+        if len(digits) < 9:
+            return None
         return f'https://wa.me/{digits}'
 
     def get_shift_display(self):
