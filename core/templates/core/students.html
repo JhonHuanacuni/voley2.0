@@ -15,7 +15,7 @@
         <div class="table-responsive">
             <table class="table table-bordered">
                 <thead>
-                    <tr><th>Nombre</th><th>Contacto</th><th>Turno</th><th>Días asist.</th><th>Matrícula</th><th>Días para venc.</th><th>Estado</th><th>Acciones</th></tr>
+                    <tr><th>Nombre</th><th>Contacto</th><th>Turno</th><th>Días asist.</th><th>Matrícula</th><th>Días para venc.</th><th>Acciones</th></tr>
                 </thead>
                 <tbody>
                     {% for student in students %}
@@ -25,8 +25,11 @@
                         <td>{{ student.get_shift_display }}</td>
                         <td>{{ student.attendance_days_display }}</td>
                         <td>{% if student.enrollment_status == 'active' %}Activa{% else %}Inactiva{% endif %}</td>
-                        <td>{{ student.membership_days_remaining_display }}</td>
-                        <td>{% if student.enrollment_status == 'active' %}Activa{% else %}Inactiva{% endif %}</td>
+                        <td>
+                            {% with info=student.membership_expiry_info %}
+                            <span class="badge badge-{{ info.color }} px-2 py-2">{{ info.label }}</span>
+                            {% endwith %}
+                        </td>
                         <td>
                             {% if student.whatsapp_url %}
                                 <a class="btn btn-sm btn-success" href="{{ student.whatsapp_url }}" target="_blank" rel="noreferrer">WhatsApp</a>
@@ -41,7 +44,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="8">No se encontraron alumnas.</td></tr>
+                    <tr><td colspan="7">No se encontraron alumnas.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

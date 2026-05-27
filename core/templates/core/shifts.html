@@ -1,10 +1,27 @@
 {% extends 'core/base.html' %}
 {% block content %}
+<style>
+    .shift-days-checkboxes .form-check {
+        min-height: 2rem;
+        padding-left: 2rem;
+        margin-bottom: 0.35rem;
+    }
+    .shift-days-checkboxes .form-check-input-lg {
+        width: 1.5rem;
+        height: 1.5rem;
+        margin-left: -2rem;
+        margin-top: 0.2rem;
+        transform: scale(1.35);
+        -webkit-transform: scale(1.35);
+    }
+    .shift-days-checkboxes .form-check-label {
+        font-size: 1rem;
+        padding-top: 0.15rem;
+    }
+</style>
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Turnos</h1>
-    {% if create_mode %}
     <a class="btn btn-primary" href="{% url 'shifts_list' %}"><i class="fas fa-plus"></i> Nuevo turno</a>
-    {% endif %}
 </div>
 <div class="row">
     <div class="col-lg-6">
@@ -16,7 +33,7 @@
                 <div class="table-responsive">
                     <table class="table table-bordered">
                         <thead>
-                            <tr><th>ID</th><th>Nombre</th><th>Inicio</th><th>Fin</th><th>Acciones</th></tr>
+                            <tr><th>ID</th><th>Nombre</th><th>Inicio</th><th>Fin</th><th>Días habilitados</th><th>Acciones</th></tr>
                         </thead>
                         <tbody>
                             {% for shift in shifts %}
@@ -25,6 +42,7 @@
                                 <td>{{ shift.name }}</td>
                                 <td>{{ shift.start_time }}</td>
                                 <td>{{ shift.end_time }}</td>
+                                <td>{{ shift.active_days_display }}</td>
                                 <td>
                                     <a class="btn btn-sm btn-info" href="{% url 'shift_edit' shift.id %}">Editar</a>
                                     {% if not is_secretary %}
@@ -35,7 +53,7 @@
                                 </td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="3">No hay turnos registrados.</td></tr>
+                            <tr><td colspan="6">No hay turnos registrados.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -49,21 +67,39 @@
                 <h6 class="m-0 font-weight-bold text-primary">{% if edit_mode %}Editar turno{% else %}Agregar turno{% endif %}</h6>
             </div>
             <div class="card-body">
-                <form method="post">
+                <form method="post" action="{% if edit_mode %}{% url 'shift_edit' shift.id %}{% else %}{% url 'shifts_list' %}{% endif %}">
                     {% csrf_token %}
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
                     <div class="form-group">
                         {{ form.name.label_tag }}
                         {{ form.name }}
+                        {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
                     </div>
                     <div class="form-row">
                         <div class="form-group col-md-6">
                             {{ form.start_time.label_tag }}
                             {{ form.start_time }}
+                            {% if form.start_time.errors %}<div class="text-danger small">{{ form.start_time.errors }}</div>{% endif %}
                         </div>
                         <div class="form-group col-md-6">
                             {{ form.end_time.label_tag }}
                             {{ form.end_time }}
+                            {% if form.end_time.errors %}<div class="text-danger small">{{ form.end_time.errors }}</div>{% endif %}
                         </div>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="d-block font-weight-bold">{{ form.active_days.label }}</label>
+                        <div class="shift-days-checkboxes">
+                            {% for checkbox in form.active_days %}
+                            <div class="form-check">
+                                {{ checkbox.tag }}
+                                <label class="form-check-label" for="{{ checkbox.id_for_label }}">{{ checkbox.choice_label }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% if form.active_days.errors %}<div class="text-danger small">{{ form.active_days.errors }}</div>{% endif %}
                     </div>
                     <button type="submit" class="btn btn-primary">Guardar</button>
                     <a class="btn btn-secondary" href="{% url 'shifts_list' %}">Cancelar</a>

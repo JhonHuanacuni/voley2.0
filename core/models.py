@@ -9,6 +9,7 @@ class Shift(models.Model):
     name = models.CharField(max_length=120)
     start_time = models.TimeField()
     end_time = models.TimeField()
+    active_days = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -21,6 +22,19 @@ class Shift(models.Model):
     @property
     def schedule(self):
         return f"{self.start_time.strftime('%H:%M')} - {self.end_time.strftime('%H:%M')}"
+
+    @property
+    def active_days_display(self):
+        from .weekdays import format_weekdays
+        return format_weekdays(self.active_days or [])
+
+    def is_active_on_weekday(self, weekday):
+        if weekday is None:
+            return True
+        days = self.active_days or []
+        if not days or len(days) == 7:
+            return True
+        return weekday in days
 
     def __str__(self):
         return f"{self.name} ({self.schedule})"
@@ -104,28 +118,82 @@ class Student(models.Model):
             return 'Todos'
         return ', '.join([labels[idx] for idx in self.attendance_days if 0 <= idx < len(labels)])
 
-    @property
-    def membership_days_remaining(self):
+    def _membership_period(self):
+        """Devuelve (inicio, fin) usando las fechas del formulario de la alumna."""
         from datetime import timedelta
 
+        if self.membership_start and self.membership_end:
+            return self.membership_start, self.membership_end
+
+        membership = self.memberships.filter(
+            start_date__lte=timezone.localdate(),
+            end_date__gte=timezone.localdate(),
+        ).order_by('-end_date').first()
+        if not membership:
+            membership = self.memberships.order_by('-end_date', '-created_at').first()
+        if membership:
+            return membership.start_date, membership.end_date
+
+        start = self.membership_start
+        end = self.membership_end
+        if end and not start:
+            start = end - timedelta(days=30)
+        return start, end
+
+    @property
+    def membership_expiry_info(self):
+        """
+        Días que faltan para que termine la membresía y color según avance del periodo:
+        verde = recién empezó, naranja = mitad, rojo = por terminar o vencida.
+        """
         today = timezone.localdate()
-        expiry = self.membership_end
-        if not expiry and self.membership_start:
-            expiry = self.membership_start + timedelta(days=30)
-        if not expiry:
-            return None
-        return (expiry - today).days
+        start, end = self._membership_period()
+        if not end:
+            return {'days': None, 'label': 'Sin membresía', 'color': 'secondary'}
+        if not start:
+            from datetime import timedelta
+            start = end - timedelta(days=30)
+
+        total_days = max((end - start).days, 1)
+
+        if today > end:
+            days_left = (end - today).days
+            label = f'Vencida hace {abs(days_left)} día{"s" if abs(days_left) != 1 else ""}'
+            color = 'danger'
+        elif today < start:
+            days_left = (end - start).days
+            days_until_start = (start - today).days
+            if days_left == 0:
+                label = 'Inicia hoy'
+            else:
+                label = f'{days_left} día{"s" if days_left != 1 else ""} (inicia en {days_until_start}d)'
+            color = 'success'
+        else:
+            days_left = (end - today).days
+            if days_left == 0:
+                label = 'Vence hoy'
+                color = 'danger'
+            else:
+                label = f'{days_left} día{"s" if days_left != 1 else ""}'
+                elapsed = (today - start).days
+                progress = min(max(elapsed / total_days, 0), 1)
+                if progress < 1 / 3:
+                    color = 'success'
+                elif progress < 2 / 3:
+                    color = 'warning'
+                else:
+                    color = 'danger'
+
+        return {'days': days_left, 'label': label, 'color': color}
+
+    @property
+    def membership_days_remaining(self):
+        info = self.membership_expiry_info
+        return info['days']
 
     @property
     def membership_days_remaining_display(self):
-        days = self.membership_days_remaining
-        if days is None:
-            return 'Sin fecha'
-        if days < 0:
-            return f'Vencida {abs(days)}d'
-        if days == 0:
-            return 'Hoy'
-        return f'{days} días'
+        return self.membership_expiry_info['label']
 
     @property
     def whatsapp_url(self):

@@ -113,14 +113,66 @@
             </div>
         </div>
     </div>
-    {% else %}
-    <div class="col-12 mb-4">
-        <div class="alert alert-info">
-            
-        </div>
-    </div>
     {% endif %}
 </div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-wrap align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Reporte de asistencias</h6>
+        <form method="get" class="form-inline mt-2 mt-md-0">
+
+            <label class="sr-only" for="att_start">Fecha inicio</label>
+            <input type="date" name="att_start" id="att_start" value="{{ att_start }}" class="form-control form-control-sm mr-2 mb-2 mb-md-0" title="Fecha inicio">
+            <label class="sr-only" for="att_end">Fecha final</label>
+            <input type="date" name="att_end" id="att_end" value="{{ att_end }}" class="form-control form-control-sm mr-2 mb-2 mb-md-0" title="Fecha final">
+            <label class="sr-only" for="att_shift">Turno</label>
+            <select name="att_shift" id="att_shift" class="form-control form-control-sm mr-2 mb-2 mb-md-0">
+                <option value="">Todos los turnos</option>
+                {% for sid, label in shift_choices %}
+                <option value="{{ sid }}" {% if att_shift == sid %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm btn-primary mb-2 mb-md-0">Filtrar</button>
+        </form>
+    </div>
+    <div class="card-body">
+        {% if att_period == 'daily' %}
+        <p class="text-muted small mb-3">Fecha: <strong>{{ att_start }}</strong></p>
+        {% elif att_period == 'weekly' %}
+        <p class="text-muted small mb-3">
+            Semana del <strong>{{ att_start }}</strong> al <strong>{{ att_end }}</strong>.
+        </p>
+        {% else %}
+        <p class="text-muted small mb-3">
+            Periodo del <strong>{{ att_start }}</strong> al <strong>{{ att_end }}</strong>.
+        </p>
+        {% endif %}
+
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-4">
+                <h6 class="font-weight-bold text-gray-800 mb-2">Acumulado hasta hoy</h6>
+                <p class="text-muted small mb-2">Asistencias registradas desde el inicio del mes hasta la fecha de hoy.</p>
+                <div class="chart-bar" style="position: relative; height: 260px;">
+                    <canvas id="attendanceChartUntilToday"></canvas>
+                </div>
+                <p class="text-muted small mt-2 mb-0">
+                    Total registros: {{ attendance_charts.until_today.total }}
+                    — Asistencias: {{ attendance_charts.until_today.present_pct }}%
+                    · Faltas: {{ attendance_charts.until_today.absent_pct }}%
+                    · Tardanzas: {{ attendance_charts.until_today.late_pct }}%
+                </p>
+            </div>
+            <div class="col-lg-6 mb-4">
+                <h6 class="font-weight-bold text-gray-800 mb-2">Evolución diaria del mes</h6>
+                <p class="text-muted small mb-2">Cantidad de registros por día: asistencias, faltas y tardanzas.</p>
+                <div class="chart-bar" style="position: relative; height: 260px;">
+                    <canvas id="attendanceChartDaily"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% if not is_secretary %}
 <div class="row mb-4">
     <div class="col-lg-12">
@@ -175,6 +227,137 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    function buildAttendancePercentChart(canvasId, stats) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || !stats) return;
+
+        return new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: ['Asistencias', 'Faltas', 'Tardanzas'],
+                datasets: [{
+                    label: '% del total',
+                    data: [stats.present_pct, stats.absent_pct, stats.late_pct],
+                    backgroundColor: [
+                        'rgba(28, 200, 138, 0.85)',
+                        'rgba(231, 74, 59, 0.85)',
+                        'rgba(246, 194, 62, 0.85)',
+                    ],
+                    borderColor: [
+                        'rgba(28, 200, 138, 1)',
+                        'rgba(231, 74, 59, 1)',
+                        'rgba(246, 194, 62, 1)',
+                    ],
+                    borderWidth: 1,
+                }],
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.parsed.y + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    const attChartUntilToday = {{ att_chart_until_today|safe }};
+    const attChartDailySeries = {{ att_chart_daily_series|safe }};
+    buildAttendancePercentChart('attendanceChartUntilToday', attChartUntilToday);
+
+    const dailyCanvas = document.getElementById('attendanceChartDaily');
+    if (dailyCanvas && attChartDailySeries) {
+        new Chart(dailyCanvas, {
+            type: 'line',
+            data: {
+                labels: attChartDailySeries.labels,
+                datasets: [
+                    {
+                        label: 'Asistencias',
+                        data: attChartDailySeries.present,
+                        borderColor: 'rgba(28, 200, 138, 1)',
+                        backgroundColor: 'rgba(28, 200, 138, 1)',
+                        pointBackgroundColor: 'rgba(28, 200, 138, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        borderWidth: 2,
+                        tension: 0.2,
+                        fill: false,
+                    },
+                    {
+                        label: 'Faltas',
+                        data: attChartDailySeries.absent,
+                        borderColor: 'rgba(231, 74, 59, 1)',
+                        backgroundColor: 'rgba(231, 74, 59, 1)',
+                        pointBackgroundColor: 'rgba(231, 74, 59, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        borderWidth: 2,
+                        tension: 0.2,
+                        fill: false,
+                    },
+                    {
+                        label: 'Tardanzas',
+                        data: attChartDailySeries.late,
+                        borderColor: 'rgba(246, 194, 62, 1)',
+                        backgroundColor: 'rgba(246, 194, 62, 1)',
+                        pointBackgroundColor: 'rgba(246, 194, 62, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        borderWidth: 2,
+                        tension: 0.2,
+                        fill: false,
+                    },
+                ],
+            },
+            options: {
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45,
+                        },
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 },
+                    },
+                },
+                plugins: {
+                    legend: { position: 'bottom' },
+                },
+            },
+        });
+    }
+
     const paymentsByMonthLabels = {{ payments_by_month_labels|safe }};
     const paymentsByMonthData = {{ payments_by_month_data|safe }};
     const ctxPayments = document.getElementById('paymentsChart');

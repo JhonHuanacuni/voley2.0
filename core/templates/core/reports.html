@@ -8,7 +8,7 @@
         <div class="card shadow">
             <div class="card-body">
                 <form method="get" class="form-row align-items-end">
-                    <div class="col-md-4">
+                    <div class="col-md-3 mb-2">
                         <label for="report_student">Alumna</label>
                         <select id="report_student" name="student" class="form-control">
                             <option value="">Todas las alumnas</option>
@@ -17,7 +17,7 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3 mb-2">
                         <label for="report_shift">Turno</label>
                         <select id="report_shift" name="shift" class="form-control">
                             <option value="">Todos los turnos</option>
@@ -26,8 +26,29 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <button class="btn btn-secondary btn-block">Aplicar filtro</button>
+                    <div class="col-md-2 mb-2">
+                        <label for="report_month">Mes</label>
+                        <select id="report_month" name="month" class="form-control">
+                            <option value="1"{% if report_month == 1 %} selected{% endif %}>Enero</option>
+                            <option value="2"{% if report_month == 2 %} selected{% endif %}>Febrero</option>
+                            <option value="3"{% if report_month == 3 %} selected{% endif %}>Marzo</option>
+                            <option value="4"{% if report_month == 4 %} selected{% endif %}>Abril</option>
+                            <option value="5"{% if report_month == 5 %} selected{% endif %}>Mayo</option>
+                            <option value="6"{% if report_month == 6 %} selected{% endif %}>Junio</option>
+                            <option value="7"{% if report_month == 7 %} selected{% endif %}>Julio</option>
+                            <option value="8"{% if report_month == 8 %} selected{% endif %}>Agosto</option>
+                            <option value="9"{% if report_month == 9 %} selected{% endif %}>Septiembre</option>
+                            <option value="10"{% if report_month == 10 %} selected{% endif %}>Octubre</option>
+                            <option value="11"{% if report_month == 11 %} selected{% endif %}>Noviembre</option>
+                            <option value="12"{% if report_month == 12 %} selected{% endif %}>Diciembre</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <label for="report_year">Año</label>
+                        <input type="number" id="report_year" name="year" class="form-control" min="2020" max="2100" value="{{ report_year }}">
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <button class="btn btn-secondary btn-block" type="submit">Aplicar filtro</button>
                     </div>
                 </form>
             </div>
@@ -47,9 +68,12 @@
     <div class="col-lg-4 mb-4">
         <div class="card shadow h-100">
             <div class="card-body">
-                <h5 class="card-title">Asistencia</h5>
-                <p class="card-text">Exporta el registro de asistencia en formato .xlsx.</p>
-                <a class="btn btn-primary" href="{% url 'export_attendance_xlsx' %}{% if selected_student or selected_shift %}?{% endif %}{% if selected_student %}student={{ selected_student }}{% endif %}{% if selected_student and selected_shift %}&{% endif %}{% if selected_shift %}shift={{ selected_shift }}{% endif %}">Exportar Excel</a>
+                <h5 class="card-title">Asistencia mensual</h5>
+                <p class="card-text">
+                    Planilla por días del mes con marcas <strong>A</strong> (asistió), <strong>T</strong> (tarde) y <strong>F</strong> (falta),
+                    más totales al final.
+                </p>
+                <a class="btn btn-primary" href="{% url 'export_attendance_xlsx' %}?year={{ report_year }}&month={{ report_month }}{% if selected_student %}&student={{ selected_student }}{% endif %}{% if selected_shift %}&shift={{ selected_shift }}{% endif %}">Exportar Excel</a>
             </div>
         </div>
     </div>

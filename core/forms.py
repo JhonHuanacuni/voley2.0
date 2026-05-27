@@ -2,6 +2,7 @@ from django import forms
 from django.forms import DateInput
 from datetime import date
 from .models import Attendance, Membership, Payment, Shift, Student
+from .weekdays import WEEKDAY_CHOICES_MON_FIRST, WEEKDAY_ORDER_MON_FIRST, sort_weekdays
 
 
 class StudentForm(forms.ModelForm):
@@ -271,9 +272,16 @@ class AttendanceForm(forms.ModelForm):
 
 
 class ShiftForm(forms.ModelForm):
+    active_days = forms.MultipleChoiceField(
+        choices=WEEKDAY_CHOICES_MON_FIRST,
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input form-check-input-lg'}),
+        required=False,
+        label='Días habilitados',
+    )
+
     class Meta:
         model = Shift
-        fields = ['name', 'start_time', 'end_time']
+        fields = ['name', 'start_time', 'end_time', 'active_days']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del turno'}),
             'start_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
@@ -284,6 +292,20 @@ class ShiftForm(forms.ModelForm):
             'start_time': 'Hora de inicio',
             'end_time': 'Hora de fin',
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            if self.instance.pk and self.instance.active_days:
+                self.fields['active_days'].initial = sort_weekdays(self.instance.active_days)
+            else:
+                self.fields['active_days'].initial = list(WEEKDAY_ORDER_MON_FIRST)
+
+    def clean_active_days(self):
+        days = self.cleaned_data.get('active_days') or []
+        if not days:
+            return list(WEEKDAY_ORDER_MON_FIRST)
+        return sort_weekdays([int(d) for d in days])
 
 
 class PaymentForm(forms.ModelForm):

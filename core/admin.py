@@ -18,7 +18,7 @@ class StudentAdmin(admin.ModelAdmin):
 
 @admin.register(Shift)
 class ShiftAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'start_time', 'end_time')
+    list_display = ('id', 'name', 'start_time', 'end_time', 'active_days_display')
     search_fields = ('name',)
     ordering = ('name',)
 

@@ -21,7 +21,7 @@
         .content-card { margin-top: 1rem; }
         .card .card-body small { color: #6c757d; }
 
-        .sidebar { position: relative; overflow: hidden; }
+        .sidebar { position: relative; overflow: visible; }
         .sidebar::before {
             content: '';
             position: absolute;
@@ -120,6 +120,28 @@
 <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
 <script src="{% static 'vendor/jquery-easing/jquery.easing.min.js' %}"></script>
 <script src="{% static 'js/sb-admin-2.min.js' %}"></script>
+<script>
+    // Fallback for mobile sidebar submenu if Bootstrap collapse is not bound.
+    document.addEventListener('DOMContentLoaded', function () {
+        var membershipToggle = document.querySelector('[aria-controls="collapseMemberships"]');
+        var membershipCollapse = document.getElementById('collapseMemberships');
+        if (!membershipToggle || !membershipCollapse) return;
+
+        var hasBs4 = window.jQuery && window.jQuery.fn && typeof window.jQuery.fn.collapse === 'function';
+        var hasBs5 = window.bootstrap && typeof window.bootstrap.Collapse === 'function';
+        if (hasBs4 || hasBs5) return;
+
+        membershipToggle.addEventListener('click', function (event) {
+            event.preventDefault();
+            membershipCollapse.classList.toggle('show');
+            membershipToggle.classList.toggle('collapsed');
+            membershipToggle.setAttribute(
+                'aria-expanded',
+                membershipCollapse.classList.contains('show') ? 'true' : 'false'
+            );
+        });
+    });
+</script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -20,6 +20,8 @@ except ImportError:
 from .forms import PaymentForm, ShiftForm, StudentForm
 from .models import Attendance, Membership, Payment, Shift, Student
 from .receipt_pdf import fill_payment_receipt
+from .attendance_matrix_export import build_attendance_matrix_workbook
+from .attendance_report import get_attendance_chart_stats, month_bounds
 
 
 def _today_iso():
@@ -48,6 +50,12 @@ def _student_attends_on_date(student, date_string):
     if not days or len(days) == 7:
         return True
     return weekday in days
+
+
+def _shift_active_on_date(shift, date_string):
+    if not shift:
+        return True
+    return shift.is_active_on_weekday(_weekday_from_date(date_string))
 
 
 def _student_debt(student):
@@ -105,7 +113,8 @@ def dashboard_view(request):
     inactive_enrollment = active_students.filter(enrollment_status='inactive').count()
     attended_this_month = Attendance.objects.filter(date__gte=_first_of_month())
     payments_month = Payment.objects.filter(date__gte=_first_of_month())
-    debt_count = sum(1 for student in active_students if (_student_debt(student)['debt'] or 0) > 0)
+    # Keep KPI aligned with memberships list (status=Deuda).
+    debt_count = Membership.objects.filter(status='debt').count()
     # pagos totales del mes
     payments_month_total = payments_month.aggregate(total=Sum('amount'))['total'] or 0
     # preparar datos de los últimos 6 meses para gráfico
@@ -135,6 +144,46 @@ def dashboard_view(request):
     user_role = get_user_role(request.user)
     is_secretary = user_role == 'secretary'
 
+    att_period = request.GET.get('att_period', 'monthly')
+    if att_period not in ('daily', 'weekly', 'monthly'):
+        att_period = 'monthly'
+
+    month_start_default, month_end_default = month_bounds(today_dt)
+    att_start_str = request.GET.get('att_start', month_start_default.isoformat())
+    att_end_str = request.GET.get('att_end', month_end_default.isoformat())
+    try:
+        att_start_date = date.fromisoformat(att_start_str)
+    except (TypeError, ValueError):
+        att_start_date = month_start_default
+    try:
+        att_end_date = date.fromisoformat(att_end_str)
+    except (TypeError, ValueError):
+        att_end_date = month_end_default
+    if att_start_date > att_end_date:
+        att_start_date, att_end_date = att_end_date, att_start_date
+
+    att_shift = request.GET.get('att_shift', '')
+    shift_id = att_shift or None
+    attendance_charts = get_attendance_chart_stats(
+        att_start_date,
+        shift_id,
+        today=today_dt,
+    )
+
+    def _chart_stats_for_json(stats):
+        return {
+            **stats,
+            'start_date': stats['start_date'].isoformat(),
+            'end_date': stats['end_date'].isoformat(),
+        }
+
+    def _daily_series_for_json(series):
+        return {
+            **series,
+            'start_date': series['start_date'].isoformat(),
+            'end_date': series['end_date'].isoformat(),
+        }
+
     context = {
         'total_students': students.count(),
         'active_enrollment': active_students.filter(enrollment_status='active').count(),
@@ -155,6 +204,14 @@ def dashboard_view(request):
         'recent_students': students.order_by('-created_at')[:5],
         'user_role': user_role,
         'is_secretary': is_secretary,
+        'att_period': att_period,
+        'att_start': att_start_date.isoformat(),
+        'att_end': att_end_date.isoformat(),
+        'att_shift': att_shift,
+        'attendance_charts': attendance_charts,
+        'att_chart_until_today': json.dumps(_chart_stats_for_json(attendance_charts['until_today'])),
+        'att_chart_daily_series': json.dumps(_daily_series_for_json(attendance_charts['daily_series'])),
+        'shift_choices': [(str(s.id), str(s)) for s in Shift.objects.order_by('name')],
     }
     return render(request, 'core/dashboard.html', context)
 
@@ -162,7 +219,7 @@ def dashboard_view(request):
 @login_required(login_url='login')
 def student_list(request):
     query = request.GET.get('q', '').strip()
-    students = Student.objects.filter(retired=False)
+    students = Student.objects.filter(retired=False).prefetch_related('memberships')
     if query:
         students = students.filter(
             Q(name__icontains=query)
@@ -195,7 +252,7 @@ def student_create(request):
     if request.method == 'POST' and form.is_valid():
         form.save()
         return redirect('students_list')
-    students = Student.objects.filter(retired=False).order_by('name')
+    students = Student.objects.filter(retired=False).prefetch_related('memberships').order_by('name')
     return render(request, 'core/students.html', {'students': students, 'form': form, 'create_mode': True})
 
 
@@ -206,7 +263,7 @@ def student_edit(request, student_id):
     if request.method == 'POST' and form.is_valid():
         form.save()
         return redirect('students_list')
-    students = Student.objects.filter(retired=False).order_by('name')
+    students = Student.objects.filter(retired=False).prefetch_related('memberships').order_by('name')
     return render(request, 'core/students.html', {'students': students, 'form': form, 'student': student, 'edit_mode': True})
 
 
@@ -254,11 +311,27 @@ def shifts_list(request):
     if admin_redirect:
         return admin_redirect
 
+    edit_shift = None
+    edit_id = request.GET.get('edit')
+
+    if request.method == 'POST':
+        form = ShiftForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('shifts_list')
+    elif edit_id:
+        edit_shift = get_object_or_404(Shift, pk=edit_id)
+        form = ShiftForm(instance=edit_shift)
+    else:
+        form = ShiftForm()
+
     shifts = Shift.objects.order_by('name')
     return render(request, 'core/shifts.html', {
         'shifts': shifts,
-        'form': ShiftForm(),
-        'create_mode': True,
+        'form': form,
+        'create_mode': not edit_shift,
+        'edit_mode': bool(edit_shift),
+        'shift': edit_shift,
     })
 
 
@@ -267,21 +340,7 @@ def shift_create(request):
     admin_redirect = _ensure_admin(request)
     if admin_redirect:
         return admin_redirect
-
-    if request.method == 'POST':
-        form = ShiftForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('shifts_list')
-    else:
-        form = ShiftForm()
-
-    shifts = Shift.objects.order_by('name')
-    return render(request, 'core/shifts.html', {
-        'shifts': shifts,
-        'form': form,
-        'create_mode': True,
-    })
+    return redirect(f"{reverse('shifts_list')}?add=1")
 
 
 @login_required(login_url='login')
@@ -291,18 +350,21 @@ def shift_edit(request, shift_id):
         return admin_redirect
 
     shift = get_object_or_404(Shift, pk=shift_id)
-    form = ShiftForm(request.POST or None, instance=shift)
-    if request.method == 'POST' and form.is_valid():
-        form.save()
-        return redirect('shifts_list')
 
-    shifts = Shift.objects.order_by('name')
-    return render(request, 'core/shifts.html', {
-        'shifts': shifts,
-        'form': form,
-        'shift': shift,
-        'edit_mode': True,
-    })
+    if request.method == 'POST':
+        form = ShiftForm(request.POST, instance=shift)
+        if form.is_valid():
+            form.save()
+            return redirect('shifts_list')
+        shifts = Shift.objects.order_by('name')
+        return render(request, 'core/shifts.html', {
+            'shifts': shifts,
+            'form': form,
+            'shift': shift,
+            'edit_mode': True,
+        })
+
+    return redirect(f"{reverse('shifts_list')}?edit={shift_id}")
 
 
 @login_required(login_url='login')
@@ -327,10 +389,16 @@ def attendance_view(request):
     history_to = request.GET.get('history_to', '')
 
     students = Student.objects.filter(retired=False, enrollment_status='active')
+    selected_shift = None
     if shift_filter:
+        selected_shift = Shift.objects.filter(pk=shift_filter).first()
         students = students.filter(shift=shift_filter)
     students = students.order_by('name')
-    students = [student for student in students if _student_attends_on_date(student, selected_date)]
+    students = [
+        student for student in students
+        if _student_attends_on_date(student, selected_date)
+        and _shift_active_on_date(selected_shift, selected_date)
+    ]
 
     if request.method == 'POST':
         selected_date = request.POST.get('attendance_date', _today_iso())
@@ -608,6 +676,18 @@ def payment_receipt(request, payment_id):
 def report_view(request):
     selected_student = request.GET.get('student', '')
     selected_shift = request.GET.get('shift', '')
+    today = date.today()
+    try:
+        report_year = int(request.GET.get('year', today.year))
+    except (TypeError, ValueError):
+        report_year = today.year
+    try:
+        report_month = int(request.GET.get('month', today.month))
+    except (TypeError, ValueError):
+        report_month = today.month
+    if report_month < 1 or report_month > 12:
+        report_month = today.month
+
     students = Student.objects.order_by('name')
     shift_choices = [(str(shift.id), str(shift)) for shift in Shift.objects.order_by('name')]
     return render(request, 'core/reports.html', {
@@ -615,6 +695,8 @@ def report_view(request):
         'shift_choices': shift_choices,
         'selected_student': selected_student,
         'selected_shift': selected_shift,
+        'report_year': report_year,
+        'report_month': report_month,
     })
 
 
@@ -767,30 +849,26 @@ def export_students_xlsx(request):
 
 @login_required(login_url='login')
 def export_attendance_xlsx(request):
-    student_id = request.GET.get('student')
-    shift_id = request.GET.get('shift')
-    attendance = Attendance.objects.select_related('student').order_by('-date', 'student__name')
-    if student_id:
-        attendance = attendance.filter(student_id=student_id)
-    if shift_id:
-        attendance = attendance.filter(student__shift=shift_id)
-    rows = []
-    for item in attendance:
-        rows.append([
-            item.student.name,
-            item.student.get_shift_display(),
-            item.date,
-            item.get_status_display(),
-        ])
-    wb = _write_professional_workbook(
-        rows,
-        ['Alumna', 'Turno', 'Fecha', 'Estado'],
-        title='Registro de Asistencia',
-        subtitle='Registro de Asistencia por Fecha y Turno',
-        money_cols=(),
-    )
+    today = date.today()
+    try:
+        year = int(request.GET.get('year', today.year))
+    except (TypeError, ValueError):
+        year = today.year
+    try:
+        month = int(request.GET.get('month', today.month))
+    except (TypeError, ValueError):
+        month = today.month
+    if month < 1 or month > 12:
+        month = today.month
+
+    student_id = request.GET.get('student') or None
+    shift_id = request.GET.get('shift') or None
+
+    wb = build_attendance_matrix_workbook(year, month, student_id, shift_id)
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename=vita_voley_asistencia.xlsx'
+    response['Content-Disposition'] = (
+        f'attachment; filename=vita_voley_asistencia_{year}_{month:02d}.xlsx'
+    )
     wb.save(response)
     return response
 
