@@ -92,7 +92,7 @@
                                         <i class="fas fa-paper-plane"></i> Enviar
                                     </button>
                                     {% else %}
-                                    <button type="button" class="btn btn-sm btn-secondary" disabled title="No hay WhatsApp válido">
+                                    <button type="button" class="btn btn-sm btn-secondary" disabled title="No hay WhatsApp del apoderado">
                                         <i class="fas fa-paper-plane"></i> Enviar
                                     </button>
                                     {% endif %}
@@ -122,7 +122,7 @@
                 var whatsappUrl = button.dataset.whatsappUrl;
                 var studentName = button.dataset.studentName || 'amiga';
                 if (!whatsappUrl) {
-                    alert('No hay un número de WhatsApp válido para esta alumna.');
+                    alert('No hay un número de WhatsApp válido para el apoderado.');
                     return;
                 }
                 var message = 'Hola ' + studentName + '!  Somos VOLEY VITA y este es tu recibo. Gracias por tu pago . Si necesitas algo, escríbenos aquí.';

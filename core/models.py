@@ -254,11 +254,11 @@ class Student(models.Model):
     def membership_days_remaining_display(self):
         return self.membership_expiry_info['label']
 
-    @property
-    def whatsapp_url(self):
-        if not self.contact:
+    @staticmethod
+    def _whatsapp_url_from_phone(phone):
+        if not phone:
             return None
-        digits = ''.join(ch for ch in self.contact if ch.isdigit())
+        digits = ''.join(ch for ch in phone if ch.isdigit())
         if not digits:
             return None
 
@@ -273,6 +273,10 @@ class Student(models.Model):
         if len(digits) < 9:
             return None
         return f'https://wa.me/{digits}'
+
+    @property
+    def whatsapp_url(self):
+        return self._whatsapp_url_from_phone(self.guardian_phone)
 
     def get_shift_display(self):
         if not self.shift:

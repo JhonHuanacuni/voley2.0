@@ -44,7 +44,7 @@
                             {% if student.whatsapp_url %}
                                 <a class="btn btn-sm btn-success" href="{{ student.whatsapp_url }}" target="_blank" rel="noreferrer">WhatsApp</a>
                             {% else %}
-                                <button class="btn btn-sm btn-secondary" disabled>WhatsApp</button>
+                                <button class="btn btn-sm btn-secondary" disabled title="Sin teléfono del apoderado">WhatsApp</button>
                             {% endif %}
                             <a class="btn btn-sm btn-info" href="{% url 'student_edit' student.id %}">Editar</a>
                             <a class="btn btn-sm btn-warning" href="{% url 'student_retire' student.id %}">Retirar</a>
