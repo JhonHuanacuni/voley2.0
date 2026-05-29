@@ -3,6 +3,7 @@ from django.views.generic import RedirectView
 from . import views
 from . import views_membership
 from . import views_users
+from . import views_expenses
 
 urlpatterns = [
     path('login/', views.login_view, name='login'),
@@ -60,6 +61,10 @@ urlpatterns = [
     path('users/add/', views_users.user_create, name='user_add'),
     path('users/<int:user_id>/edit/', views_users.user_edit, name='user_edit'),
     path('users/<int:user_id>/delete/', views_users.user_delete, name='user_delete'),
+    path('expenses/', views_expenses.expense_list, name='expenses_list'),
+    path('expenses/add/', views_expenses.expense_create, name='expense_add'),
+    path('expenses/<int:expense_id>/edit/', views_expenses.expense_edit, name='expense_edit'),
+    path('expenses/<int:expense_id>/delete/', views_expenses.expense_delete, name='expense_delete'),
     path('reports/', views.report_view, name='reports'),
     path('reports/export/students/', views.export_students_xlsx, name='export_students_xlsx'),
     path('reports/export/attendance/', views.export_attendance_xlsx, name='export_attendance_xlsx'),

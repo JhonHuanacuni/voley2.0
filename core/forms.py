@@ -4,7 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.forms import DateInput
 from datetime import date
-from .models import Attendance, Membership, Payment, Shift, Student, UserProfile
+from .models import Attendance, Expense, Membership, Payment, Shift, Student, UserProfile
 from .weekdays import WEEKDAY_ORDER_MON_FIRST
 
 
@@ -389,6 +389,38 @@ class PaymentForm(forms.ModelForm):
             self.fields['membership'].queryset = membership_qs
         if self.instance and self.instance.pk and self.instance.date:
             self.fields['date'].initial = self.instance.date.isoformat()
+
+
+class ExpenseForm(forms.ModelForm):
+    class Meta:
+        model = Expense
+        fields = ['date', 'concept', 'provider', 'amount', 'payment_method', 'observations']
+        widgets = {
+            'date': DateInput(
+                attrs={'type': 'date', 'class': 'form-control'},
+                format='%Y-%m-%d',
+            ),
+            'concept': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Alquiler cancha'}),
+            'provider': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del proveedor'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'payment_method': forms.Select(attrs={'class': 'form-control'}),
+            'observations': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Notas adicionales'}),
+        }
+        labels = {
+            'date': 'Fecha',
+            'concept': 'Concepto',
+            'provider': 'Proveedor',
+            'amount': 'Monto (S/.)',
+            'payment_method': 'Medio de pago',
+            'observations': 'Observaciones',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        date_field = self.fields['date']
+        date_field.input_formats = ['%Y-%m-%d']
+        if self.instance.pk and self.instance.date:
+            date_field.widget.attrs['value'] = self.instance.date.strftime('%Y-%m-%d')
 
 
 class SystemUserCreateForm(forms.Form):

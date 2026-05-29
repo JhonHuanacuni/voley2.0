@@ -77,14 +77,14 @@
 <div class="row">
     {% if not is_secretary %}
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-secondary shadow h-100 py-2">
+        <div class="card border-left-danger shadow h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">Presentes este mes</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ attendance_month_present }}</div>
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Egresos del mes</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">S/ {{ expenses_total|default:'0.00' }}</div>
                     </div>
-                    <div class="col-auto"><i class="fas fa-user-check fa-2x text-gray-300"></i></div>
+                    <div class="col-auto"><i class="fas fa-file-invoice-dollar fa-2x text-gray-300"></i></div>
                 </div>
             </div>
         </div>
@@ -252,6 +252,26 @@
         </div>
     </div>
 </div>
+<div class="row mb-4">
+    <div class="col-lg-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-danger">Egresos por mes</h6>
+                <div class="form-group mb-0">
+                    <select id="expenseRange" class="form-control form-control-sm">
+                        <option value="6" selected>Últimos 6 meses</option>
+                        <option value="3">Últimos 3 meses</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-area">
+                    <canvas id="expensesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endif %}
 {% if is_secretary %}
 <div class="card shadow mb-4">
@@ -382,5 +402,50 @@
             paymentsChart.data.datasets[0].data = data;
             paymentsChart.update();
         });
+    }
+
+    const expensesByMonthLabels = {{ expenses_by_month_labels|safe }};
+    const expensesByMonthData = {{ expenses_by_month_data|safe }};
+    const ctxExpenses = document.getElementById('expensesChart');
+    if (ctxExpenses) {
+        const expensesChart = new Chart(ctxExpenses, {
+            type: 'bar',
+            data: {
+                labels: expensesByMonthLabels,
+                datasets: [{
+                    label: 'S/ Egresos',
+                    data: expensesByMonthData,
+                    backgroundColor: 'rgba(231, 74, 59, 0.7)',
+                    borderColor: 'rgba(231, 74, 59, 1)',
+                    borderWidth: 1,
+                }],
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'S/ ' + value;
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        const expenseRange = document.getElementById('expenseRange');
+        if (expenseRange) {
+            expenseRange.addEventListener('change', function() {
+                const months = parseInt(this.value, 10);
+                expensesChart.data.labels = expensesByMonthLabels.slice(-months);
+                expensesChart.data.datasets[0].data = expensesByMonthData.slice(-months);
+                expensesChart.update();
+            });
+        }
     }
 </script>{% endblock %}

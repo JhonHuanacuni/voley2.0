@@ -18,7 +18,7 @@ except ImportError:
     qrcode = None
 
 from .forms import PaymentForm, ShiftForm, StudentForm
-from .models import Attendance, Membership, Payment, Shift, Student
+from .models import Attendance, Expense, Membership, Payment, Shift, Student
 from .receipt_pdf import fill_payment_receipt
 from .attendance_matrix_export import build_attendance_matrix_workbook
 from .attendance_report import get_attendance_chart_stats, get_monthly_enrollments, month_bounds
@@ -123,6 +123,19 @@ def dashboard_view(request):
         total = Payment.objects.filter(date__year=y, date__month=m).aggregate(total=Sum('amount'))['total'] or 0
         payments_by_month_labels.append(label)
         payments_by_month_data.append(float(total))
+
+    expenses_month = Expense.objects.filter(date__gte=_first_of_month())
+    expenses_month_total = expenses_month.aggregate(total=Sum('amount'))['total'] or 0
+    expenses_by_month_labels = []
+    expenses_by_month_data = []
+    for i in range(5, -1, -1):
+        m = (today.month - i - 1) % 12 + 1
+        y = today.year + ((today.month - i - 1) // 12)
+        label = f"{y}-{m:02d}"
+        total = Expense.objects.filter(date__year=y, date__month=m).aggregate(total=Sum('amount'))['total'] or 0
+        expenses_by_month_labels.append(label)
+        expenses_by_month_data.append(float(total))
+
     today = _today_iso()
     # calcular cumpleaños hoy
     from datetime import date as _date
@@ -187,6 +200,10 @@ def dashboard_view(request):
         'payments_total': f"{payments_month_total:.2f}",
         'payments_by_month_labels': json.dumps(payments_by_month_labels),
         'payments_by_month_data': json.dumps(payments_by_month_data),
+        'expenses_month_total': expenses_month_total,
+        'expenses_total': f'{expenses_month_total:.2f}',
+        'expenses_by_month_labels': json.dumps(expenses_by_month_labels),
+        'expenses_by_month_data': json.dumps(expenses_by_month_data),
         'debt_count': debt_count,
         'students': students.order_by('-created_at')[:5],
         'recent_students': students.order_by('-created_at')[:5],

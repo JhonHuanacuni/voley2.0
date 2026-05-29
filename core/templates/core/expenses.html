@@ -1,0 +1,103 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Egresos</h1>
+    {% if not edit_mode %}
+    <a class="btn btn-primary" href="{% url 'expenses_list' %}?create=1"><i class="fas fa-plus"></i> Registrar egreso</a>
+    {% endif %}
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-wrap align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Registro de egresos</h6>
+        <form method="get" class="form-inline mt-2 mt-md-0">
+            <input type="text" name="q" value="{{ query }}" class="form-control form-control-sm mr-2 mb-2 mb-md-0" placeholder="Buscar concepto o proveedor">
+            <button type="submit" class="btn btn-sm btn-primary mb-2 mb-md-0">Buscar</button>
+            {% if query %}
+            <a href="{% url 'expenses_list' %}" class="btn btn-sm btn-secondary ml-2 mb-2 mb-md-0">Limpiar</a>
+            {% endif %}
+        </form>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Concepto</th>
+                        <th>Proveedor</th>
+                        <th>Monto (S/.)</th>
+                        <th>Medio de pago</th>
+                        <th>Observaciones</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in expenses %}
+                    <tr>
+                        <td>{{ item.date|date:"d/m/Y" }}</td>
+                        <td>{{ item.concept }}</td>
+                        <td>{{ item.provider|default:"—" }}</td>
+                        <td>S/ {{ item.amount|floatformat:2 }}</td>
+                        <td>{{ item.get_payment_method_display }}</td>
+                        <td>{{ item.observations|default:"—"|truncatechars:40 }}</td>
+                        <td class="text-nowrap">
+                            <a class="btn btn-sm btn-info" href="{% url 'expense_edit' item.id %}">Editar</a>
+                            <form method="post" action="{% url 'expense_delete' item.id %}" class="d-inline" onsubmit="return confirm('¿Eliminar este egreso?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center text-muted">No hay egresos registrados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if edit_mode or create_mode and form %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">
+            {% if edit_mode %}Editar egreso{% else %}Nuevo egreso{% endif %}
+        </h6>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    {{ form.date.label_tag }} {{ form.date }}
+                    {% if form.date.errors %}<div class="text-danger small">{{ form.date.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-5 mb-3">
+                    {{ form.concept.label_tag }} {{ form.concept }}
+                    {% if form.concept.errors %}<div class="text-danger small">{{ form.concept.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-4 mb-3">
+                    {{ form.provider.label_tag }} {{ form.provider }}
+                </div>
+                <div class="col-md-3 mb-3">
+                    {{ form.amount.label_tag }} {{ form.amount }}
+                    {% if form.amount.errors %}<div class="text-danger small">{{ form.amount.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-3 mb-3">
+                    {{ form.payment_method.label_tag }} {{ form.payment_method }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    {{ form.observations.label_tag }} {{ form.observations }}
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">{% if edit_mode %}Guardar cambios{% else %}Registrar egreso{% endif %}</button>
+            <a class="btn btn-secondary" href="{% url 'expenses_list' %}">Cancelar</a>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

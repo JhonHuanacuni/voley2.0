@@ -356,6 +356,30 @@ class Payment(models.Model):
     def __str__(self):
         return f"{self.student.name} - {self.amount} - {self.date}"
 
+class Expense(models.Model):
+    date = models.DateField(default=timezone.now, verbose_name='Fecha')
+    concept = models.CharField(max_length=200, verbose_name='Concepto')
+    provider = models.CharField(max_length=200, blank=True, verbose_name='Proveedor')
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Monto (S/.)')
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default='efectivo',
+        verbose_name='Medio de pago',
+    )
+    observations = models.TextField(blank=True, verbose_name='Observaciones')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date', '-created_at']
+        verbose_name = 'Egreso'
+        verbose_name_plural = 'Egresos'
+
+    def __str__(self):
+        return f'{self.date} - {self.concept} - S/ {self.amount}'
+
+
 class UserProfile(models.Model):
     ROLE_CHOICES = [
         ('admin', 'Administrador'),
