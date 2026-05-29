@@ -56,7 +56,7 @@
     </div>
 </div>
 <div class="row">
-    <div class="col-lg-4 mb-4">
+    <div class="col-lg-{% if is_secretary %}6{% else %}4{% endif %} mb-4">
         <div class="card shadow h-100">
             <div class="card-body">
                 <h5 class="card-title">Alumnas</h5>
@@ -65,7 +65,7 @@
             </div>
         </div>
     </div>
-    <div class="col-lg-4 mb-4">
+    <div class="col-lg-{% if is_secretary %}6{% else %}4{% endif %} mb-4">
         <div class="card shadow h-100">
             <div class="card-body">
                 <h5 class="card-title">Asistencia mensual</h5>
@@ -77,6 +77,7 @@
             </div>
         </div>
     </div>
+    {% if not is_secretary %}
     <div class="col-lg-4 mb-4">
         <div class="card shadow h-100">
             <div class="card-body">
@@ -86,5 +87,6 @@
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
 {% endblock %}

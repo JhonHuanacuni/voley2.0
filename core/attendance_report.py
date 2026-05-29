@@ -1,6 +1,8 @@
 from datetime import date, timedelta
 import calendar
 
+from django.db.models import Q
+
 from .models import Attendance, Shift, Student
 
 
@@ -12,14 +14,9 @@ def _weekday_from_date(date_string):
     return selected.weekday() + 1 if selected.weekday() < 6 else 0
 
 
-def _student_attends_on_date(student, date_string):
-    weekday = _weekday_from_date(date_string)
-    if weekday is None:
-        return True
-    days = student.attendance_days or []
-    if not days or len(days) == 7:
-        return True
-    return weekday in days
+def _student_attends_on_date(student, target_date):
+    date_str = target_date.isoformat() if hasattr(target_date, 'isoformat') else target_date
+    return student.attends_on_weekday(_weekday_from_date(date_str))
 
 
 def _shift_active_on_date(shift, date_string):
@@ -49,7 +46,7 @@ def eligible_students_for_date(target_date, shift_id=None):
     return [
         student
         for student in students.select_related('shift').order_by('name')
-        if _student_attends_on_date(student, date_str)
+        if _student_attends_on_date(student, target_date)
         and _shift_active_on_date(selected_shift, date_str)
     ]
 
@@ -186,48 +183,42 @@ def compute_percentage_stats(start_date, end_date, shift_id=None):
     }
 
 
-def get_attendance_daily_series(reference_date, shift_id=None, today=None):
-    """Conteo diario de asistencias, faltas y tardanzas (inicio de mes hasta hoy)."""
-    today = today or date.today()
-    month_start, month_end = month_bounds(reference_date)
-    end_date = min(today, month_end)
+def get_monthly_enrollments(start_date, end_date, shift_id=None):
+    """Alumnas matriculadas en el rango (por fecha de inscripción o inicio de membresía)."""
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
 
-    labels = []
-    present_data = []
-    absent_data = []
-    late_data = []
+    students = (
+        Student.objects.filter(retired=False)
+        .select_related('shift')
+        .filter(
+            Q(enrollment_date__gte=start_date, enrollment_date__lte=end_date)
+            | Q(membership_start__gte=start_date, membership_start__lte=end_date)
+        )
+        .order_by('-enrollment_date', '-membership_start', 'name')
+        .distinct()
+    )
+    if shift_id:
+        students = students.filter(shift_id=shift_id)
 
-    current = month_start
-    while current <= end_date:
-        qs = Attendance.objects.filter(date=current)
-        if shift_id:
-            qs = qs.filter(student__shift_id=shift_id)
-
-        labels.append(current.strftime('%d/%m'))
-        present_data.append(qs.filter(status='present').count())
-        absent_data.append(qs.filter(status='absent').count())
-        late_data.append(qs.filter(status='late').count())
-        current += timedelta(days=1)
-
+    student_list = list(students)
     return {
-        'labels': labels,
-        'present': present_data,
-        'absent': absent_data,
-        'late': late_data,
-        'start_date': month_start,
+        'students': student_list,
+        'total': len(student_list),
+        'active_count': sum(1 for student in student_list if student.enrollment_status == 'active'),
+        'start_date': start_date,
         'end_date': end_date,
     }
 
 
 def get_attendance_chart_stats(reference_date, shift_id=None, today=None):
-    """Resumen acumulado (% ) y evolución diaria del mes hasta hoy."""
+    """Resumen acumulado de asistencias (% ) del mes hasta hoy."""
     today = today or date.today()
     month_start, month_end = month_bounds(reference_date)
     until_today_end = min(today, month_end)
 
     return {
         'until_today': compute_percentage_stats(month_start, until_today_end, shift_id),
-        'daily_series': get_attendance_daily_series(reference_date, shift_id, today),
         'month_start': month_start,
         'month_end': month_end,
     }

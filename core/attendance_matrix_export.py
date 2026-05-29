@@ -89,9 +89,9 @@ def build_attendance_matrix_workbook(year, month, student_id=None, shift_id=None
     fixed_headers = [
         'N°',
         'NOMBRES Y APELLIDOS',
-        'TUTORA',
-        'AULA',
-        'CICLO',
+        'APODERADO',
+        'TURNO',
+        'HORARIO',
         'ESTADO',
     ]
     day_headers = [_day_header(date(year, month, day)) for day in range(1, days_in_month + 1)]

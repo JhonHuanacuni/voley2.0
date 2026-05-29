@@ -15,22 +15,32 @@
         <div class="table-responsive">
             <table class="table table-bordered">
                 <thead>
-                    <tr><th>Nombre</th><th>Contacto</th><th>Turno</th><th>Días asist.</th><th>Matrícula</th><th>Días para venc.</th><th>Acciones</th></tr>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Ciclo</th>
+                        <th>Teléfono</th>
+                        <th>Turno</th>
+                        <th>Condición</th>
+                        <th>Matrícula</th>
+                        <th>Días para venc.</th>
+                        <th>Acciones</th>
+                    </tr>
                 </thead>
                 <tbody>
                     {% for student in students %}
                     <tr>
                         <td>{{ student.name }}</td>
-                        <td>{{ student.contact }}</td>
-                        <td>{{ student.get_shift_display }}</td>
-                        <td>{{ student.attendance_days_display }}</td>
+                        <td>{{ student.get_cycle_display|default:"—" }}</td>
+                        <td>{{ student.contact|default:"—" }}</td>
+                        <td>{{ student.get_shift_display|default:"—" }}</td>
+                        <td>{{ student.get_student_condition_display }}</td>
                         <td>{% if student.enrollment_status == 'active' %}Activa{% else %}Inactiva{% endif %}</td>
                         <td>
                             {% with info=student.membership_expiry_info %}
                             <span class="badge badge-{{ info.color }} px-2 py-2">{{ info.label }}</span>
                             {% endwith %}
                         </td>
-                        <td>
+                        <td class="text-nowrap">
                             {% if student.whatsapp_url %}
                                 <a class="btn btn-sm btn-success" href="{{ student.whatsapp_url }}" target="_blank" rel="noreferrer">WhatsApp</a>
                             {% else %}
@@ -44,7 +54,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="7">No se encontraron alumnas.</td></tr>
+                    <tr><td colspan="8">No se encontraron alumnas.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -53,39 +63,119 @@
 </div>
 {% if create_mode or edit_mode %}
 <div class="card shadow mb-4">
-    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">{% if create_mode %}Registrar alumna{% else %}Editar alumna{% endif %}</h6></div>
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">{% if create_mode %}Registrar alumna{% else %}Editar alumna{% endif %}</h6>
+    </div>
     <div class="card-body">
         <form method="post">
             {% csrf_token %}
-            <div class="row">
-                <div class="col-md-4 mb-3">{{ form.name.label_tag }} {{ form.name }}</div>
-                <div class="col-md-4 mb-3">{{ form.age.label_tag }} {{ form.age }}</div>
-                <div class="col-md-4 mb-3">{{ form.dni.label_tag }} {{ form.dni }}</div>
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
 
-                <div class="col-md-4 mb-3">{{ form.email.label_tag }} {{ form.email }}</div>
-                <div class="col-md-4 mb-3">{{ form.contact.label_tag }} {{ form.contact }}</div>
-                <div class="col-md-4 mb-3">{{ form.guardian.label_tag }} {{ form.guardian }}</div>
+            <div class="border rounded p-3 mb-4 bg-light">
+                <h6 class="font-weight-bold text-primary mb-3"><i class="fas fa-user"></i> Datos de la alumna</h6>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form.name.label_tag }} {{ form.name }}
+                        {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        {{ form.dni.label_tag }} {{ form.dni }}
+                        {% if form.dni.errors %}<div class="text-danger small">{{ form.dni.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        {{ form.gender.label_tag }} {{ form.gender }}
+                    </div>
 
-                <div class="col-md-12 mb-3">{{ form.address.label_tag }} {{ form.address }}</div>
+                    <div class="col-md-3 mb-3">
+                        {{ form.birth_date.label_tag }} {{ form.birth_date }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.age.label_tag }} {{ form.age }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ form.contact.label_tag }} {{ form.contact }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        {{ form.email.label_tag }} {{ form.email }}
+                    </div>
 
-                <div class="col-md-4 mb-3">{{ form.shift.label_tag }} {{ form.shift }}</div>
-                <div class="col-md-4 mb-3">{{ form.birth_date.label_tag }} {{ form.birth_date }}</div>
-                <div class="col-md-4 mb-3">{{ form.enrollment_date.label_tag }} {{ form.enrollment_date }}</div>
-                <div class="col-md-4 mb-3">{{ form.membership_start.label_tag }} {{ form.membership_start }}</div>
-                <div class="col-md-4 mb-3">{{ form.membership_end.label_tag }} {{ form.membership_end }}</div>
+                    <div class="col-md-4 mb-3">
+                        {{ form.cycle.label_tag }} {{ form.cycle }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ form.student_condition.label_tag }} {{ form.student_condition }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.size.label_tag }} {{ form.size }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.school.label_tag }} {{ form.school }}
+                    </div>
 
-                <div class="col-md-4 mb-3">{{ form.enrollment_status.label_tag }} {{ form.enrollment_status }}</div>
-                <div class="col-md-4 mb-3">{{ form.monthly_fee.label_tag }} {{ form.monthly_fee }}</div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.shift.label_tag }} {{ form.shift }}
+                        {% if form.shift.help_text %}<small class="form-text text-muted">{{ form.shift.help_text }}</small>{% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.address.label_tag }} {{ form.address }}
+                    </div>
+                </div>
+            </div>
 
-                <div class="col-12 mb-3">
-                    <label class="d-block">Días de asistencia</label>
-                    <div>
-                        {% for checkbox in form.attendance_days %}
-                            <div class="form-check form-check-inline mr-2">
-                                {{ checkbox.tag }}
-                                <label class="form-check-label ml-1">{{ checkbox.choice_label }}</label>
-                            </div>
-                        {% endfor %}
+            <div class="border rounded p-3 mb-4">
+                <h6 class="font-weight-bold text-primary mb-3"><i class="fas fa-user-friends"></i> Datos del apoderado</h6>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form.guardian.label_tag }} {{ form.guardian }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        {{ form.guardian_dni.label_tag }} {{ form.guardian_dni }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        {{ form.guardian_gender.label_tag }} {{ form.guardian_gender }}
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        {{ form.guardian_birth_date.label_tag }} {{ form.guardian_birth_date }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ form.guardian_phone.label_tag }} {{ form.guardian_phone }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="border rounded p-3 mb-4">
+                <h6 class="font-weight-bold text-primary mb-3"><i class="fas fa-id-card"></i> Matrícula y academia</h6>
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        {{ form.enrollment_status.label_tag }} {{ form.enrollment_status }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        {{ form.enrollment_date.label_tag }} {{ form.enrollment_date }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        {{ form.membership_start.label_tag }} {{ form.membership_start }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        {{ form.membership_end.label_tag }} {{ form.membership_end }}
+                        {% if form.membership_end.errors %}<div class="text-danger small">{{ form.membership_end.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        {{ form.monthly_fee.label_tag }} {{ form.monthly_fee }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.referral_source.label_tag }} {{ form.referral_source }}
+                    </div>
+                    <div class="col-md-3 mb-3 d-flex align-items-end">
+                        <div class="form-check mb-2">
+                            {{ form.uniform_delivered }}
+                            <label class="form-check-label" for="{{ form.uniform_delivered.id_for_label }}">
+                                {{ form.uniform_delivered.label }}
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -65,6 +65,30 @@ ATTENDANCE_STATUS_CHOICES = [
     ('late', 'Tarde'),
 ]
 
+CYCLE_CHOICES = [
+    ('ninas_6_9', 'Niñas 6 - 9 años'),
+    ('adolescentes_10_14', 'Adolescentes 10 - 14 años'),
+    ('juvenil_15_plus', 'Juvenil 15 o más'),
+]
+
+STUDENT_CONDITION_CHOICES = [
+    ('regular', 'Regular'),
+    ('becado', 'Becado'),
+    ('half_scholarship', '1/2 beca'),
+]
+
+GENDER_CHOICES = [
+    ('female', 'Mujer'),
+    ('male', 'Hombre'),
+]
+
+SIZE_CHOICES = [
+    ('XS', 'XS'),
+    ('S', 'S'),
+    ('M', 'M'),
+    ('L', 'L'),
+]
+
 
 class Student(models.Model):
     ENROLLMENT_STATUS_CHOICES = ENROLLMENT_STATUS_CHOICES
@@ -73,8 +97,30 @@ class Student(models.Model):
     age = models.PositiveSmallIntegerField(blank=True, null=True)
     dni = models.CharField(max_length=15, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
-    contact = models.CharField(max_length=200, blank=True, null=True)
-    guardian = models.CharField(max_length=120, blank=True, null=True)
+    contact = models.CharField(max_length=200, blank=True, null=True, verbose_name='Teléfono del estudiante')
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, null=True, verbose_name='Género')
+    cycle = models.CharField(max_length=20, choices=CYCLE_CHOICES, blank=True, null=True, verbose_name='Ciclo')
+    student_condition = models.CharField(
+        max_length=20,
+        choices=STUDENT_CONDITION_CHOICES,
+        default='regular',
+        verbose_name='Condición del alumno',
+    )
+    school = models.CharField(max_length=120, blank=True, null=True, verbose_name='Colegio')
+    size = models.CharField(max_length=5, choices=SIZE_CHOICES, blank=True, null=True, verbose_name='Talla')
+    referral_source = models.CharField(max_length=200, blank=True, null=True, verbose_name='¿Cómo se enteró de la academia?')
+    uniform_delivered = models.BooleanField(default=False, verbose_name='Se entregó uniforme')
+    guardian = models.CharField(max_length=120, blank=True, null=True, verbose_name='Nombre del apoderado')
+    guardian_dni = models.CharField(max_length=15, blank=True, null=True, verbose_name='DNI del apoderado')
+    guardian_birth_date = models.DateField(blank=True, null=True, verbose_name='Fecha de nacimiento del apoderado')
+    guardian_gender = models.CharField(
+        max_length=10,
+        choices=GENDER_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name='Género del apoderado',
+    )
+    guardian_phone = models.CharField(max_length=200, blank=True, null=True, verbose_name='Teléfono del apoderado')
     address = models.TextField(blank=True, null=True)
     shift = models.ForeignKey(Shift, on_delete=models.PROTECT, blank=True, null=True, related_name='students')
     enrollment_status = models.CharField(max_length=10, choices=ENROLLMENT_STATUS_CHOICES, default='active')
@@ -113,10 +159,23 @@ class Student(models.Model):
 
     @property
     def attendance_days_display(self):
+        if self.shift:
+            return f'{self.shift.schedule} · {self.shift.active_days_display}'
         labels = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
         if not self.attendance_days or len(self.attendance_days) == 7:
-            return 'Todos'
+            return 'Sin turno'
         return ', '.join([labels[idx] for idx in self.attendance_days if 0 <= idx < len(labels)])
+
+    def attends_on_weekday(self, weekday):
+        """Días de clase según el turno (o respaldo en attendance_days si no hay turno)."""
+        if self.shift_id:
+            return self.shift.is_active_on_weekday(weekday)
+        if weekday is None:
+            return True
+        days = self.attendance_days or []
+        if not days or len(days) == 7:
+            return True
+        return weekday in days
 
     def _membership_period(self):
         """Devuelve (inicio, fin) usando las fechas del formulario de la alumna."""

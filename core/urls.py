@@ -2,6 +2,7 @@ from django.urls import path
 from django.views.generic import RedirectView
 from . import views
 from . import views_membership
+from . import views_users
 
 urlpatterns = [
     path('login/', views.login_view, name='login'),
@@ -55,8 +56,13 @@ urlpatterns = [
     path('shifts/add/', views.shift_create, name='shift_add'),
     path('shifts/<int:shift_id>/edit/', views.shift_edit, name='shift_edit'),
     path('shifts/<int:shift_id>/delete/', views.shift_delete, name='shift_delete'),
+    path('users/', views_users.user_list, name='users_list'),
+    path('users/add/', views_users.user_create, name='user_add'),
+    path('users/<int:user_id>/edit/', views_users.user_edit, name='user_edit'),
+    path('users/<int:user_id>/delete/', views_users.user_delete, name='user_delete'),
     path('reports/', views.report_view, name='reports'),
     path('reports/export/students/', views.export_students_xlsx, name='export_students_xlsx'),
     path('reports/export/attendance/', views.export_attendance_xlsx, name='export_attendance_xlsx'),
+    path('reports/export/enrollments/', views.export_monthly_enrollments_xlsx, name='export_monthly_enrollments_xlsx'),
     path('reports/export/payments/', views.export_payments_xlsx, name='export_payments_xlsx'),
 ]

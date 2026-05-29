@@ -21,7 +21,7 @@ from .forms import PaymentForm, ShiftForm, StudentForm
 from .models import Attendance, Membership, Payment, Shift, Student
 from .receipt_pdf import fill_payment_receipt
 from .attendance_matrix_export import build_attendance_matrix_workbook
-from .attendance_report import get_attendance_chart_stats, month_bounds
+from .attendance_report import get_attendance_chart_stats, get_monthly_enrollments, month_bounds
 
 
 def _today_iso():
@@ -43,13 +43,7 @@ def _weekday_from_date(date_string):
 
 
 def _student_attends_on_date(student, date_string):
-    weekday = _weekday_from_date(date_string)
-    if weekday is None:
-        return True
-    days = student.attendance_days or []
-    if not days or len(days) == 7:
-        return True
-    return weekday in days
+    return student.attends_on_weekday(_weekday_from_date(date_string))
 
 
 def _shift_active_on_date(shift, date_string):
@@ -169,19 +163,13 @@ def dashboard_view(request):
         shift_id,
         today=today_dt,
     )
+    monthly_enrollments = get_monthly_enrollments(att_start_date, att_end_date, shift_id)
 
     def _chart_stats_for_json(stats):
         return {
             **stats,
             'start_date': stats['start_date'].isoformat(),
             'end_date': stats['end_date'].isoformat(),
-        }
-
-    def _daily_series_for_json(series):
-        return {
-            **series,
-            'start_date': series['start_date'].isoformat(),
-            'end_date': series['end_date'].isoformat(),
         }
 
     context = {
@@ -210,7 +198,7 @@ def dashboard_view(request):
         'att_shift': att_shift,
         'attendance_charts': attendance_charts,
         'att_chart_until_today': json.dumps(_chart_stats_for_json(attendance_charts['until_today'])),
-        'att_chart_daily_series': json.dumps(_daily_series_for_json(attendance_charts['daily_series'])),
+        'monthly_enrollments': monthly_enrollments,
         'shift_choices': [(str(s.id), str(s)) for s in Shift.objects.order_by('name')],
     }
     return render(request, 'core/dashboard.html', context)
@@ -873,8 +861,93 @@ def export_attendance_xlsx(request):
     return response
 
 
+def _parse_dashboard_date_range(request):
+    today_dt = date.today()
+    month_start_default, month_end_default = month_bounds(today_dt)
+    try:
+        att_start_date = date.fromisoformat(request.GET.get('att_start', month_start_default.isoformat()))
+    except (TypeError, ValueError):
+        att_start_date = month_start_default
+    try:
+        att_end_date = date.fromisoformat(request.GET.get('att_end', month_end_default.isoformat()))
+    except (TypeError, ValueError):
+        att_end_date = month_end_default
+    if att_start_date > att_end_date:
+        att_start_date, att_end_date = att_end_date, att_start_date
+    return att_start_date, att_end_date
+
+
+@login_required(login_url='login')
+def export_monthly_enrollments_xlsx(request):
+    att_start_date, att_end_date = _parse_dashboard_date_range(request)
+    shift_id = request.GET.get('att_shift') or None
+
+    enrollment_data = get_monthly_enrollments(att_start_date, att_end_date, shift_id)
+
+    shift_label = ''
+    if shift_id:
+        shift = Shift.objects.filter(pk=shift_id).first()
+        if shift:
+            shift_label = f' | Turno: {shift.name}'
+
+    subtitle = (
+        f'Matriculados del periodo: {att_start_date.strftime("%d/%m/%Y")} — '
+        f'{att_end_date.strftime("%d/%m/%Y")} | '
+        f'Total: {enrollment_data["total"]} '
+        f'({enrollment_data["active_count"]} activas){shift_label}'
+    )
+
+    rows = []
+    for index, student in enumerate(enrollment_data['students'], start=1):
+        rows.append([
+            index,
+            student.name,
+            student.dni or '',
+            student.email or '',
+            student.contact or '',
+            student.guardian or '',
+            student.get_shift_display(),
+            student.attendance_days_display,
+            student.enrollment_date.strftime('%d/%m/%Y') if student.enrollment_date else '',
+            student.membership_start.strftime('%d/%m/%Y') if student.membership_start else '',
+            student.membership_end.strftime('%d/%m/%Y') if student.membership_end else '',
+            float(student.monthly_fee) if student.monthly_fee else '',
+            student.get_enrollment_status_display(),
+        ])
+
+    wb = _write_professional_workbook(
+        rows,
+        [
+            'N°',
+            'Nombre',
+            'DNI',
+            'Email',
+            'Teléfono',
+            'Apoderado',
+            'Turno',
+            'Horario',
+            'Fecha inscripción',
+            'Inicio membresía',
+            'Fin membresía',
+            'Cuota mensual',
+            'Estado matrícula',
+        ],
+        title='Matriculados del periodo',
+        subtitle=subtitle,
+        money_cols=(11,),
+    )
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = (
+        f'attachment; filename=vita_voley_matriculados_{att_start_date:%Y%m%d}_{att_end_date:%Y%m%d}.xlsx'
+    )
+    wb.save(response)
+    return response
+
+
 @login_required(login_url='login')
 def export_payments_xlsx(request):
+    if get_user_role(request.user) == 'secretary':
+        return redirect('reports')
     student_id = request.GET.get('student')
     payments = Payment.objects.select_related('membership', 'student').order_by('-date')
     if student_id:

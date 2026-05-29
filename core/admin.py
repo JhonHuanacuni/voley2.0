@@ -11,9 +11,17 @@ class MembershipAdmin(admin.ModelAdmin):
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ('name', 'shift', 'enrollment_status', 'membership_start', 'membership_end', 'retired', 'monthly_fee')
-    search_fields = ('name', 'contact', 'dni', 'email')
-    list_filter = ('shift', 'enrollment_status', 'retired')
+    list_display = (
+        'name',
+        'cycle',
+        'student_condition',
+        'shift',
+        'enrollment_status',
+        'uniform_delivered',
+        'retired',
+    )
+    search_fields = ('name', 'contact', 'guardian_phone', 'dni', 'email', 'guardian_dni')
+    list_filter = ('shift', 'cycle', 'student_condition', 'enrollment_status', 'retired', 'uniform_delivered')
 
 
 @admin.register(Shift)

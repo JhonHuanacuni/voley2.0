@@ -43,6 +43,21 @@
             </div>
         </div>
     </div>
+    {% if is_secretary %}
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-dark shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-dark text-uppercase mb-1">Cumpleaños hoy</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ birthdays_today }}</div>
+                    </div>
+                    <div class="col-auto"><i class="fas fa-birthday-cake fa-2x text-gray-300"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
     {% if not is_secretary %}
     <div class="col-xl-3 col-md-6 mb-4">
         <div class="card border-left-success shadow h-100 py-2">
@@ -163,10 +178,53 @@
                 </p>
             </div>
             <div class="col-lg-6 mb-4">
-                <h6 class="font-weight-bold text-gray-800 mb-2">Evolución diaria del mes</h6>
-                <p class="text-muted small mb-2">Cantidad de registros por día: asistencias, faltas y tardanzas.</p>
-                <div class="chart-bar" style="position: relative; height: 260px;">
-                    <canvas id="attendanceChartDaily"></canvas>
+                <div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
+                    <h6 class="font-weight-bold text-gray-800 mb-0">Matriculados del periodo</h6>
+                    <a
+                        class="btn btn-sm btn-success mt-2 mt-md-0"
+                        href="{% url 'export_monthly_enrollments_xlsx' %}?att_start={{ att_start }}&att_end={{ att_end }}{% if att_shift %}&att_shift={{ att_shift }}{% endif %}"
+                    >
+                        <i class="fas fa-file-excel"></i> Descargar Excel
+                    </a>
+                </div>
+                <p class="text-muted small mb-2">
+                    Alumnas inscritas entre las fechas del filtro.
+                    <strong>{{ monthly_enrollments.total }}</strong> en total
+                    ({{ monthly_enrollments.active_count }} activas).
+                </p>
+                <div class="table-responsive" style="max-height: 260px; overflow-y: auto;">
+                    <table class="table table-sm table-bordered mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Nombre</th>
+                                <th>Turno</th>
+                                <th>Inscripción</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in monthly_enrollments.students %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ student.name }}</td>
+                                <td>{{ student.get_shift_display|default:"—" }}</td>
+                                <td>{{ student.enrollment_date|date:"d/m/Y"|default:"—" }}</td>
+                                <td>
+                                    {% if student.enrollment_status == 'active' %}
+                                    <span class="badge badge-success">Activa</span>
+                                    {% else %}
+                                    <span class="badge badge-secondary">Inactiva</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-muted text-center">No hay matriculados en este periodo.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -279,84 +337,7 @@
     }
 
     const attChartUntilToday = {{ att_chart_until_today|safe }};
-    const attChartDailySeries = {{ att_chart_daily_series|safe }};
     buildAttendancePercentChart('attendanceChartUntilToday', attChartUntilToday);
-
-    const dailyCanvas = document.getElementById('attendanceChartDaily');
-    if (dailyCanvas && attChartDailySeries) {
-        new Chart(dailyCanvas, {
-            type: 'line',
-            data: {
-                labels: attChartDailySeries.labels,
-                datasets: [
-                    {
-                        label: 'Asistencias',
-                        data: attChartDailySeries.present,
-                        borderColor: 'rgba(28, 200, 138, 1)',
-                        backgroundColor: 'rgba(28, 200, 138, 1)',
-                        pointBackgroundColor: 'rgba(28, 200, 138, 1)',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
-                        borderWidth: 2,
-                        tension: 0.2,
-                        fill: false,
-                    },
-                    {
-                        label: 'Faltas',
-                        data: attChartDailySeries.absent,
-                        borderColor: 'rgba(231, 74, 59, 1)',
-                        backgroundColor: 'rgba(231, 74, 59, 1)',
-                        pointBackgroundColor: 'rgba(231, 74, 59, 1)',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
-                        borderWidth: 2,
-                        tension: 0.2,
-                        fill: false,
-                    },
-                    {
-                        label: 'Tardanzas',
-                        data: attChartDailySeries.late,
-                        borderColor: 'rgba(246, 194, 62, 1)',
-                        backgroundColor: 'rgba(246, 194, 62, 1)',
-                        pointBackgroundColor: 'rgba(246, 194, 62, 1)',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
-                        borderWidth: 2,
-                        tension: 0.2,
-                        fill: false,
-                    },
-                ],
-            },
-            options: {
-                maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                scales: {
-                    x: {
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45,
-                        },
-                    },
-                    y: {
-                        beginAtZero: true,
-                        ticks: { stepSize: 1 },
-                    },
-                },
-                plugins: {
-                    legend: { position: 'bottom' },
-                },
-            },
-        });
-    }
 
     const paymentsByMonthLabels = {{ payments_by_month_labels|safe }};
     const paymentsByMonthData = {{ payments_by_month_data|safe }};

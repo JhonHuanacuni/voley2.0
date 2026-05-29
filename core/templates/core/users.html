@@ -1,0 +1,122 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Usuarios del sistema</h1>
+    {% if not edit_mode %}
+    <a class="btn btn-primary" href="{% url 'users_list' %}?create=1"><i class="fas fa-user-plus"></i> Nuevo usuario</a>
+    {% endif %}
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Usuarios registrados</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Nombre</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in users %}
+                    <tr>
+                        <td>{{ item.username }}</td>
+                        <td>{{ item.get_full_name|default:"—" }}</td>
+                        <td>{{ item.email|default:"—" }}</td>
+                        <td>
+                            {% if item.userprofile %}
+                                {{ item.userprofile.get_role_display }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.is_active %}
+                            <span class="badge badge-success">Activo</span>
+                            {% else %}
+                            <span class="badge badge-secondary">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-nowrap">
+                            <a class="btn btn-sm btn-info" href="{% url 'user_edit' item.id %}">Editar</a>
+                            {% if item.id != request.user.id %}
+                            <form method="post" action="{% url 'user_delete' item.id %}" class="d-inline" onsubmit="return confirm('¿Eliminar este usuario?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No hay usuarios registrados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if edit_mode or create_mode and form %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">
+            {% if edit_mode %}Editar usuario: {{ edit_user.username }}{% else %}Crear usuario de acceso{% endif %}
+        </h6>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    {{ form.username.label_tag }} {{ form.username }}
+                    {% if form.username.errors %}<div class="text-danger small">{{ form.username.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-4 mb-3">
+                    {{ form.first_name.label_tag }} {{ form.first_name }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    {{ form.last_name.label_tag }} {{ form.last_name }}
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    {{ form.email.label_tag }} {{ form.email }}
+                    {% if form.email.errors %}<div class="text-danger small">{{ form.email.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-3 mb-3">
+                    {{ form.role.label_tag }} {{ form.role }}
+                </div>
+                <div class="col-md-3 mb-3 d-flex align-items-end">
+                    <div class="form-check mb-2">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    {{ form.password.label_tag }} {{ form.password }}
+                    {% if form.password.errors %}<div class="text-danger small">{{ form.password.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-6 mb-3">
+                    {{ form.password_confirm.label_tag }} {{ form.password_confirm }}
+                    {% if form.password_confirm.errors %}<div class="text-danger small">{{ form.password_confirm.errors }}</div>{% endif %}
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">{% if edit_mode %}Guardar cambios{% else %}Crear usuario{% endif %}</button>
+            <a class="btn btn-secondary" href="{% url 'users_list' %}">Cancelar</a>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

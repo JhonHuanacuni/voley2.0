@@ -1,19 +1,14 @@
 from django import forms
+from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.forms import DateInput
 from datetime import date
-from .models import Attendance, Membership, Payment, Shift, Student
-from .weekdays import WEEKDAY_CHOICES_MON_FIRST, WEEKDAY_ORDER_MON_FIRST, sort_weekdays
+from .models import Attendance, Membership, Payment, Shift, Student, UserProfile
+from .weekdays import WEEKDAY_ORDER_MON_FIRST
 
 
 class StudentForm(forms.ModelForm):
-    attendance_days = forms.MultipleChoiceField(
-        choices=[(i, label) for i, label in enumerate(['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'])],
-        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input form-check-input-lg'}),
-        required=False,
-        label='Días de asistencia',
-    )
-
-    # Override shift to include a placeholder first option and load dynamic turnos
     shift = forms.ModelChoiceField(
         queryset=Shift.objects.none(),
         empty_label='SELECCIONE TURNO',
@@ -27,6 +22,13 @@ class StudentForm(forms.ModelForm):
         widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
         input_formats=['%Y-%m-%d'],
         label='Fecha de nacimiento',
+    )
+
+    guardian_birth_date = forms.DateField(
+        required=False,
+        widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
+        input_formats=['%Y-%m-%d'],
+        label='Fecha de nacimiento del apoderado',
     )
 
     enrollment_date = forms.DateField(
@@ -50,56 +52,88 @@ class StudentForm(forms.ModelForm):
         label='Fecha final de membresía',
     )
 
+    uniform_delivered = forms.BooleanField(
+        required=False,
+        label='Se entregó uniforme',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
+
     class Meta:
         model = Student
         fields = [
             'name',
-            'age',
             'dni',
+            'birth_date',
+            'age',
+            'gender',
             'email',
             'contact',
-            'guardian',
-            'address',
+            'cycle',
+            'student_condition',
+            'school',
+            'size',
             'shift',
-            'birth_date',
+            'address',
             'enrollment_status',
             'monthly_fee',
             'enrollment_date',
             'membership_start',
             'membership_end',
-            'attendance_days',
+            'referral_source',
+            'uniform_delivered',
+            'guardian',
+            'guardian_dni',
+            'guardian_birth_date',
+            'guardian_gender',
+            'guardian_phone',
         ]
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre completo'}),
-            'age': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Edad'}),
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre completo de la alumna'}),
             'dni': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'DNI'}),
+            'age': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Edad'}),
+            'gender': forms.Select(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Correo electrónico'}),
-            'contact': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Teléfono'}),
-            'guardian': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del apoderado'}),
-            'address': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Dirección completa', 'rows': 1}),
-            'shift': forms.Select(attrs={'class': 'form-control'}),
-            'birth_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'contact': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Teléfono del estudiante'}),
+            'cycle': forms.Select(attrs={'class': 'form-control'}),
+            'student_condition': forms.Select(attrs={'class': 'form-control'}),
+            'school': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Colegio'}),
+            'size': forms.Select(attrs={'class': 'form-control'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Dirección', 'rows': 2}),
             'enrollment_status': forms.Select(attrs={'class': 'form-control'}),
             'monthly_fee': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Cuota mensual'}),
-            'enrollment_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'attendance_days': forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input form-check-input-lg'}),
+            'referral_source': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej. redes sociales, referido, volante',
+            }),
+            'guardian': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del apoderado'}),
+            'guardian_dni': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'DNI del apoderado'}),
+            'guardian_gender': forms.Select(attrs={'class': 'form-control'}),
+            'guardian_phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Teléfono del apoderado'}),
         }
-
         labels = {
-            'name': 'Nombre',
-            'age': 'Edad',
+            'name': 'Nombre completo',
             'dni': 'DNI',
+            'age': 'Edad',
+            'gender': 'Género',
             'email': 'Email',
-            'contact': 'Teléfono',
-            'guardian': 'Apoderado',
-            'address': 'Dirección',
+            'contact': 'Teléfono del estudiante',
+            'cycle': 'Ciclo',
+            'student_condition': 'Condición del alumno',
+            'school': 'Colegio',
+            'size': 'Talla',
             'shift': 'Turno',
+            'address': 'Dirección',
             'birth_date': 'Fecha de nacimiento',
             'enrollment_status': 'Estado de matrícula',
             'monthly_fee': 'Cuota mensual',
             'enrollment_date': 'Fecha de inscripción',
             'membership_start': 'Inicio de membresía',
             'membership_end': 'Fin de membresía',
+            'referral_source': '¿Cómo se enteró de la academia?',
+            'guardian': 'Nombre del apoderado',
+            'guardian_dni': 'DNI del apoderado',
+            'guardian_gender': 'Género del apoderado',
+            'guardian_phone': 'Teléfono del apoderado',
         }
 
     def clean(self):
@@ -113,12 +147,6 @@ class StudentForm(forms.ModelForm):
             )
         return cleaned
 
-    def clean_attendance_days(self):
-        days = self.cleaned_data.get('attendance_days') or []
-        if not days:
-            return list(range(7))
-        return [int(d) for d in days]
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         is_new = not getattr(self.instance, 'pk', None)
@@ -126,13 +154,33 @@ class StudentForm(forms.ModelForm):
             self.fields['enrollment_date'].initial = date.today().isoformat()
             self.fields['membership_start'].initial = date.today().isoformat()
 
+        date_fields = (
+            'birth_date',
+            'enrollment_date',
+            'membership_start',
+            'membership_end',
+            'guardian_birth_date',
+        )
         if self.instance and self.instance.pk:
-            for field_name in ('birth_date', 'enrollment_date', 'membership_start', 'membership_end'):
+            for field_name in date_fields:
                 value = getattr(self.instance, field_name, None)
                 if value:
                     self.fields[field_name].initial = value.isoformat()
 
         self.fields['shift'].queryset = Shift.objects.order_by('name')
+        self.fields['shift'].help_text = 'El horario y los días de clase se toman del turno seleccionado.'
+        self.fields['gender'].empty_label = 'Seleccione'
+        self.fields['guardian_gender'].empty_label = 'Seleccione'
+        self.fields['cycle'].empty_label = 'Seleccione ciclo'
+        self.fields['size'].empty_label = 'Seleccione talla'
+
+    def save(self, commit=True):
+        student = super().save(commit=False)
+        if student.shift_id:
+            student.attendance_days = list(student.shift.active_days or WEEKDAY_ORDER_MON_FIRST)
+        if commit:
+            student.save()
+        return student
 
 
 class MembershipForm(forms.ModelForm):
@@ -241,7 +289,6 @@ class MembershipRenewForm(forms.ModelForm):
             'notes': 'Notas',
         }
 
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field_name in ('start_date', 'end_date'):
@@ -273,7 +320,7 @@ class AttendanceForm(forms.ModelForm):
 
 class ShiftForm(forms.ModelForm):
     active_days = forms.MultipleChoiceField(
-        choices=WEEKDAY_CHOICES_MON_FIRST,
+        choices=[],
         widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input form-check-input-lg'}),
         required=False,
         label='Días habilitados',
@@ -294,7 +341,9 @@ class ShiftForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        from .weekdays import WEEKDAY_CHOICES_MON_FIRST, sort_weekdays
         super().__init__(*args, **kwargs)
+        self.fields['active_days'].choices = WEEKDAY_CHOICES_MON_FIRST
         if not self.is_bound:
             if self.instance.pk and self.instance.active_days:
                 self.fields['active_days'].initial = sort_weekdays(self.instance.active_days)
@@ -302,6 +351,7 @@ class ShiftForm(forms.ModelForm):
                 self.fields['active_days'].initial = list(WEEKDAY_ORDER_MON_FIRST)
 
     def clean_active_days(self):
+        from .weekdays import sort_weekdays
         days = self.cleaned_data.get('active_days') or []
         if not days:
             return list(WEEKDAY_ORDER_MON_FIRST)
@@ -339,3 +389,130 @@ class PaymentForm(forms.ModelForm):
             self.fields['membership'].queryset = membership_qs
         if self.instance and self.instance.pk and self.instance.date:
             self.fields['date'].initial = self.instance.date.isoformat()
+
+
+class SystemUserCreateForm(forms.Form):
+    username = forms.CharField(
+        max_length=150,
+        label='Usuario',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre de usuario'}),
+    )
+    first_name = forms.CharField(
+        required=False,
+        label='Nombres',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombres'}),
+    )
+    last_name = forms.CharField(
+        required=False,
+        label='Apellidos',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellidos'}),
+    )
+    email = forms.EmailField(
+        required=False,
+        label='Email',
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'correo@ejemplo.com'}),
+    )
+    password = forms.CharField(
+        label='Contraseña',
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Contraseña'}),
+    )
+    password_confirm = forms.CharField(
+        label='Confirmar contraseña',
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Repita la contraseña'}),
+    )
+    role = forms.ChoiceField(
+        choices=UserProfile.ROLE_CHOICES,
+        label='Rol en el sistema',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+    is_active = forms.BooleanField(
+        required=False,
+        initial=True,
+        label='Usuario activo',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
+
+    def clean_username(self):
+        username = self.cleaned_data['username'].strip()
+        if User.objects.filter(username__iexact=username).exists():
+            raise ValidationError('Ese nombre de usuario ya está registrado.')
+        return username
+
+    def clean(self):
+        cleaned = super().clean()
+        password = cleaned.get('password')
+        password_confirm = cleaned.get('password_confirm')
+        if password != password_confirm:
+            self.add_error('password_confirm', 'Las contraseñas no coinciden.')
+        if password:
+            try:
+                validate_password(password)
+            except ValidationError as exc:
+                self.add_error('password', exc)
+        return cleaned
+
+
+class SystemUserUpdateForm(forms.ModelForm):
+    role = forms.ChoiceField(
+        choices=UserProfile.ROLE_CHOICES,
+        label='Rol en el sistema',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+    password = forms.CharField(
+        required=False,
+        label='Nueva contraseña',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Dejar en blanco para no cambiar',
+        }),
+    )
+    password_confirm = forms.CharField(
+        required=False,
+        label='Confirmar nueva contraseña',
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Repita la contraseña'}),
+    )
+
+    class Meta:
+        model = User
+        fields = ['username', 'first_name', 'last_name', 'email', 'is_active']
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'username': 'Usuario',
+            'first_name': 'Nombres',
+            'last_name': 'Apellidos',
+            'email': 'Email',
+            'is_active': 'Usuario activo',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        profile = getattr(self.instance, 'userprofile', None)
+        if profile:
+            self.fields['role'].initial = profile.role
+
+    def clean_username(self):
+        username = self.cleaned_data['username'].strip()
+        exists = User.objects.filter(username__iexact=username).exclude(pk=self.instance.pk).exists()
+        if exists:
+            raise ValidationError('Ese nombre de usuario ya está registrado.')
+        return username
+
+    def clean(self):
+        cleaned = super().clean()
+        password = cleaned.get('password')
+        password_confirm = cleaned.get('password_confirm')
+        if password or password_confirm:
+            if password != password_confirm:
+                self.add_error('password_confirm', 'Las contraseñas no coinciden.')
+            else:
+                try:
+                    validate_password(password, user=self.instance)
+                except ValidationError as exc:
+                    self.add_error('password', exc)
+        return cleaned
