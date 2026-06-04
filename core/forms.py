@@ -4,11 +4,18 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.forms import DateInput
 from datetime import date
-from .models import Attendance, Expense, Membership, Payment, Shift, Student, UserProfile
+from .models import Attendance, Cycle, Expense, Membership, Payment, Shift, Student, UserProfile
 from .weekdays import WEEKDAY_ORDER_MON_FIRST
 
 
 class StudentForm(forms.ModelForm):
+    cycle = forms.ModelChoiceField(
+        queryset=Cycle.objects.none(),
+        empty_label='Seleccione ciclo',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Ciclo',
+        required=False,
+    )
     shift = forms.ModelChoiceField(
         queryset=Shift.objects.none(),
         empty_label='SELECCIONE TURNO',
@@ -169,9 +176,14 @@ class StudentForm(forms.ModelForm):
 
         self.fields['shift'].queryset = Shift.objects.order_by('name')
         self.fields['shift'].help_text = 'El horario y los días de clase se toman del turno seleccionado.'
+        self.fields['cycle'].queryset = Cycle.objects.filter(is_active=True).order_by('name')
+        if self.instance and self.instance.pk and self.instance.cycle_id:
+            from django.db.models import Q
+            self.fields['cycle'].queryset = Cycle.objects.filter(
+                Q(is_active=True) | Q(pk=self.instance.cycle_id),
+            ).order_by('name').distinct()
         self.fields['gender'].empty_label = 'Seleccione'
         self.fields['guardian_gender'].empty_label = 'Seleccione'
-        self.fields['cycle'].empty_label = 'Seleccione ciclo'
         self.fields['size'].empty_label = 'Seleccione talla'
 
     def save(self, commit=True):
@@ -356,6 +368,20 @@ class ShiftForm(forms.ModelForm):
         if not days:
             return list(WEEKDAY_ORDER_MON_FIRST)
         return sort_weekdays([int(d) for d in days])
+
+
+class CycleForm(forms.ModelForm):
+    class Meta:
+        model = Cycle
+        fields = ['name', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Niñas 6 - 9 años'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'name': 'Nombre del ciclo',
+            'is_active': 'Activo',
+        }
 
 
 class PaymentForm(forms.ModelForm):

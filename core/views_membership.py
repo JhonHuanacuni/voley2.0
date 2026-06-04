@@ -8,9 +8,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from .forms import MembershipForm, MembershipRenewForm, PaymentForm
-from .models import Membership, Payment, Student
+from .models import Membership, Payment, Shift, Student, active_cycle_choices, valid_cycle_id
 from .receipt_pdf import fill_payment_receipt
 from .views import get_user_role
+
+_MEMBERSHIP_FILTER_KEYS = ('q', 'cycle', 'shift', 'date_from', 'date_to')
+_PAYMENT_FILTER_KEYS = ('membership', 'cycle', 'shift', 'date_from', 'date_to')
 
 MONTHS_ES = {
     1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
@@ -21,6 +24,124 @@ MONTHS_ES = {
 
 def _membership_queryset():
     return Membership.objects.select_related('student', 'student__shift').order_by('-start_date', '-created_at')
+
+
+def _parse_date_param(value):
+    if not value:
+        return None
+    try:
+        parts = value.split('-')
+        if len(parts) == 3:
+            return date(int(parts[0]), int(parts[1]), int(parts[2]))
+    except (ValueError, TypeError):
+        pass
+    return None
+
+
+def _valid_shift_id(value):
+    if not value or not str(value).isdigit():
+        return ''
+    if Shift.objects.filter(pk=int(value)).exists():
+        return str(value)
+    return ''
+
+
+def _shift_choices():
+    return [(str(shift.id), str(shift)) for shift in Shift.objects.order_by('name')]
+
+
+def _filter_query_params(request, keys):
+    return {key: request.GET.get(key, '').strip() for key in keys if request.GET.get(key, '').strip()}
+
+
+def _append_query_params(url, params):
+    if not params:
+        return url
+    separator = '&' if '?' in url else '?'
+    return url + separator + '&'.join(f'{key}={value}' for key, value in params.items())
+
+
+def _apply_membership_list_filters(qs, request):
+    query = request.GET.get('q', '').strip()
+    cycle_filter = valid_cycle_id(request.GET.get('cycle', ''))
+    shift_filter = _valid_shift_id(request.GET.get('shift', ''))
+    date_from = _parse_date_param(request.GET.get('date_from', ''))
+    date_to = _parse_date_param(request.GET.get('date_to', ''))
+
+    if query:
+        qs = qs.filter(
+            Q(student__name__icontains=query)
+            | Q(student__dni__icontains=query)
+        )
+    if cycle_filter:
+        qs = qs.filter(student__cycle_id=int(cycle_filter))
+    if shift_filter:
+        qs = qs.filter(student__shift_id=int(shift_filter))
+    if date_from:
+        qs = qs.filter(end_date__gte=date_from)
+    if date_to:
+        qs = qs.filter(start_date__lte=date_to)
+
+    return qs, {
+        'query': query,
+        'cycle_filter': cycle_filter,
+        'shift_filter': shift_filter,
+        'shift_choices': _shift_choices(),
+        'date_from': request.GET.get('date_from', ''),
+        'date_to': request.GET.get('date_to', ''),
+    }
+
+
+def _apply_payment_list_filters(qs, request):
+    membership_filter = request.GET.get('membership', '').strip()
+    cycle_filter = valid_cycle_id(request.GET.get('cycle', ''))
+    shift_filter = _valid_shift_id(request.GET.get('shift', ''))
+    date_from = _parse_date_param(request.GET.get('date_from', ''))
+    date_to = _parse_date_param(request.GET.get('date_to', ''))
+
+    if membership_filter.isdigit():
+        qs = qs.filter(membership_id=int(membership_filter))
+    if cycle_filter:
+        qs = qs.filter(student__cycle_id=int(cycle_filter))
+    if shift_filter:
+        qs = qs.filter(student__shift_id=int(shift_filter))
+    if date_from:
+        qs = qs.filter(date__gte=date_from)
+    if date_to:
+        qs = qs.filter(date__lte=date_to)
+
+    return qs, {
+        'selected_membership': membership_filter if membership_filter.isdigit() else '',
+        'cycle_filter': cycle_filter,
+        'shift_filter': shift_filter,
+        'shift_choices': _shift_choices(),
+        'date_from': request.GET.get('date_from', ''),
+        'date_to': request.GET.get('date_to', ''),
+    }
+
+
+def _membership_list_filter_defaults():
+    return {
+        'cycle_choices': active_cycle_choices(),
+        'shift_choices': _shift_choices(),
+        'query': '',
+        'cycle_filter': '',
+        'shift_filter': '',
+        'date_from': '',
+        'date_to': '',
+    }
+
+
+def _payment_list_filter_defaults():
+    return {
+        'cycle_choices': active_cycle_choices(),
+        'shift_choices': _shift_choices(),
+        'selected_membership': '',
+        'cycle_filter': '',
+        'shift_filter': '',
+        'date_from': '',
+        'date_to': '',
+    }
 
 
 def _is_secretary(user):
@@ -38,22 +159,13 @@ def _default_renew_end(start):
 
 @login_required(login_url='login')
 def membership_list(request):
-    status_filter = request.GET.get('status', '')
-    query = request.GET.get('q', '').strip()
-    memberships = _membership_queryset()
-    if status_filter in ('debt', 'completed'):
-        memberships = memberships.filter(status=status_filter)
-    if query:
-        memberships = memberships.filter(
-            Q(student__name__icontains=query)
-            | Q(student__dni__icontains=query)
-        )
+    memberships, filter_ctx = _apply_membership_list_filters(_membership_queryset(), request)
 
     return render(request, 'core/memberships/list.html', {
         'memberships': memberships,
-        'query': query,
-        'status_filter': status_filter,
+        'cycle_choices': active_cycle_choices(),
         'is_secretary': _is_secretary(request.user),
+        **filter_ctx,
     })
 
 
@@ -68,6 +180,7 @@ def membership_create(request):
         'form': form,
         'create_mode': True,
         'is_secretary': _is_secretary(request.user),
+        **_membership_list_filter_defaults(),
     })
 
 
@@ -85,6 +198,7 @@ def membership_edit(request, membership_id):
         'membership': membership,
         'edit_mode': True,
         'is_secretary': _is_secretary(request.user),
+        **_membership_list_filter_defaults(),
     })
 
 
@@ -197,15 +311,16 @@ def membership_payment_add(request):
         'form': form,
         'create_mode': True,
         'is_secretary': _is_secretary(request.user),
+        **_payment_list_filter_defaults(),
     })
 
 
 @login_required(login_url='login')
 def membership_payments_list(request):
-    membership_filter = request.GET.get('membership', '')
-    payments = Payment.objects.select_related('membership', 'membership__student', 'student').order_by('-date')
-    if membership_filter:
-        payments = payments.filter(membership_id=membership_filter)
+    payments_qs = Payment.objects.select_related(
+        'membership', 'membership__student', 'student', 'student__shift',
+    ).order_by('-date')
+    payments, filter_ctx = _apply_payment_list_filters(payments_qs, request)
     memberships = _membership_queryset()
 
     form = PaymentForm(
@@ -214,25 +329,29 @@ def membership_payments_list(request):
     )
     if request.method == 'POST' and form.is_valid():
         form.save()
-        url = reverse('membership_payments_list')
-        if membership_filter:
-            url += f'?membership={membership_filter}'
+        url = _append_query_params(
+            reverse('membership_payments_list'),
+            _filter_query_params(request, _PAYMENT_FILTER_KEYS),
+        )
         return redirect(url)
 
     return render(request, 'core/memberships/payments_list.html', {
         'payments': payments,
         'memberships': memberships,
         'form': form,
-        'selected_membership': membership_filter,
+        'cycle_choices': active_cycle_choices(),
         'create_mode': False,
         'is_secretary': _is_secretary(request.user),
+        **filter_ctx,
     })
 
 
 @login_required(login_url='login')
 def membership_payment_edit(request, payment_id):
     payment = get_object_or_404(Payment.objects.select_related('membership'), pk=payment_id)
-    membership_filter = request.GET.get('membership', '') or str(payment.membership_id or '')
+    list_params = _filter_query_params(request, _PAYMENT_FILTER_KEYS)
+    if not list_params.get('membership') and payment.membership_id:
+        list_params['membership'] = str(payment.membership_id)
     form = PaymentForm(
         request.POST or None,
         instance=payment,
@@ -242,19 +361,20 @@ def membership_payment_edit(request, payment_id):
         form.save()
         if payment.membership_id:
             return redirect('membership_payments', membership_id=payment.membership_id)
-        url = reverse('membership_payments_list')
-        if membership_filter:
-            url += f'?membership={membership_filter}'
-        return redirect(url)
+        return redirect(_append_query_params(reverse('membership_payments_list'), list_params))
+
+    payments_qs = Payment.objects.select_related('membership', 'student').order_by('-date')
+    payments, filter_ctx = _apply_payment_list_filters(payments_qs, request)
 
     return render(request, 'core/memberships/payments_list.html', {
-        'payments': Payment.objects.select_related('membership', 'student').order_by('-date'),
+        'payments': payments,
         'memberships': _membership_queryset(),
         'form': form,
         'payment': payment,
         'edit_mode': True,
-        'selected_membership': membership_filter,
+        'cycle_choices': active_cycle_choices(),
         'is_secretary': _is_secretary(request.user),
+        **filter_ctx,
     })
 
 

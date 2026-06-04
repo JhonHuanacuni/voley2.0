@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Attendance, Expense, Membership, Payment, Shift, Student, UserProfile
+from .models import Attendance, Cycle, Expense, Membership, Payment, Shift, Student, UserProfile
 
 
 @admin.register(Membership)
@@ -22,6 +22,14 @@ class StudentAdmin(admin.ModelAdmin):
     )
     search_fields = ('name', 'contact', 'guardian_phone', 'dni', 'email', 'guardian_dni')
     list_filter = ('shift', 'cycle', 'student_condition', 'enrollment_status', 'retired', 'uniform_delivered')
+
+
+@admin.register(Cycle)
+class CycleAdmin(admin.ModelAdmin):
+    list_display = ('name', 'is_active', 'created_at')
+    list_filter = ('is_active',)
+    search_fields = ('name',)
+    ordering = ('name',)
 
 
 @admin.register(Shift)

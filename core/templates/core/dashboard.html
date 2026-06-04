@@ -228,6 +228,21 @@
                 </div>
             </div>
         </div>
+        {% if not is_secretary %}
+        <div class="row">
+            <div class="col-12 mb-4">
+                <h6 class="font-weight-bold text-gray-800 mb-2">Asistencias por turno</h6>
+                <p class="text-muted small mb-2">
+                    Registros del periodo <strong>{{ att_shift_chart_period }}</strong>
+                    (presentes, faltas y tardanzas). Usa las mismas fechas y turno del filtro superior.
+                </p>
+                <div class="chart-bar" style="position: relative; height: 300px;">
+                    <canvas id="attendanceByShiftChart"></canvas>
+                </div>
+                <p id="attendanceByShiftEmpty" class="text-muted small mt-2 mb-0 d-none">No hay asistencias registradas para esta fecha.</p>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -358,6 +373,75 @@
 
     const attChartUntilToday = {{ att_chart_until_today|safe }};
     buildAttendancePercentChart('attendanceChartUntilToday', attChartUntilToday);
+
+    const attendanceByShift = {{ attendance_by_shift_chart|safe }};
+    const shiftCanvas = document.getElementById('attendanceByShiftChart');
+    const shiftEmptyMsg = document.getElementById('attendanceByShiftEmpty');
+    if (shiftCanvas && attendanceByShift && attendanceByShift.labels && attendanceByShift.labels.length) {
+        new Chart(shiftCanvas, {
+            type: 'bar',
+            data: {
+                labels: attendanceByShift.labels,
+                datasets: [
+                    {
+                        label: 'Presentes',
+                        data: attendanceByShift.present,
+                        backgroundColor: 'rgba(28, 200, 138, 0.85)',
+                        borderColor: 'rgba(28, 200, 138, 1)',
+                        borderWidth: 1,
+                    },
+                    {
+                        label: 'Faltas',
+                        data: attendanceByShift.absent,
+                        backgroundColor: 'rgba(231, 74, 59, 0.85)',
+                        borderColor: 'rgba(231, 74, 59, 1)',
+                        borderWidth: 1,
+                    },
+                    {
+                        label: 'Tardanzas',
+                        data: attendanceByShift.late,
+                        backgroundColor: 'rgba(246, 194, 62, 0.85)',
+                        borderColor: 'rgba(246, 194, 62, 1)',
+                        borderWidth: 1,
+                    },
+                ],
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: false },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            precision: 0,
+                        },
+                    },
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            footer: function(items) {
+                                if (!items.length) return '';
+                                const total = items.reduce(function(sum, item) {
+                                    return sum + item.parsed.y;
+                                }, 0);
+                                return 'Total turno: ' + total;
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        if (attendanceByShift.total === 0 && shiftEmptyMsg) {
+            shiftEmptyMsg.classList.remove('d-none');
+            shiftEmptyMsg.textContent = 'No hay asistencias en este periodo para los turnos mostrados.';
+        }
+    } else if (shiftEmptyMsg) {
+        shiftEmptyMsg.classList.remove('d-none');
+        shiftEmptyMsg.textContent = 'No hay turnos registrados.';
+    }
 
     const paymentsByMonthLabels = {{ payments_by_month_labels|safe }};
     const paymentsByMonthData = {{ payments_by_month_data|safe }};

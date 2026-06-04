@@ -65,12 +65,6 @@ ATTENDANCE_STATUS_CHOICES = [
     ('late', 'Tarde'),
 ]
 
-CYCLE_CHOICES = [
-    ('ninas_6_9', 'Niñas 6 - 9 años'),
-    ('adolescentes_10_14', 'Adolescentes 10 - 14 años'),
-    ('juvenil_15_plus', 'Juvenil 15 o más'),
-]
-
 STUDENT_CONDITION_CHOICES = [
     ('regular', 'Regular'),
     ('becado', 'Becado'),
@@ -90,6 +84,51 @@ SIZE_CHOICES = [
 ]
 
 
+class Cycle(models.Model):
+    name = models.CharField(max_length=120, verbose_name='Nombre')
+    slug = models.SlugField(max_length=40, unique=True, editable=False)
+    is_active = models.BooleanField(default=True, verbose_name='Activo')
+    sort_order = models.PositiveSmallIntegerField(default=0, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Ciclo'
+        verbose_name_plural = 'Ciclos'
+
+    def __str__(self):
+        return self.name
+
+    def _make_unique_slug(self):
+        from django.utils.text import slugify
+        base = slugify(self.name) or 'ciclo'
+        slug = base
+        counter = 1
+        while Cycle.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+            slug = f'{base}-{counter}'
+            counter += 1
+        return slug
+
+    def save(self, *args, **kwargs):
+        self.slug = self._make_unique_slug()
+        super().save(*args, **kwargs)
+
+
+def active_cycle_choices():
+    return [
+        (str(cycle.pk), cycle.name)
+        for cycle in Cycle.objects.filter(is_active=True).order_by('name')
+    ]
+
+
+def valid_cycle_id(value):
+    if not value or not str(value).isdigit():
+        return ''
+    if Cycle.objects.filter(pk=int(value)).exists():
+        return str(value)
+    return ''
+
+
 class Student(models.Model):
     ENROLLMENT_STATUS_CHOICES = ENROLLMENT_STATUS_CHOICES
 
@@ -99,7 +138,14 @@ class Student(models.Model):
     email = models.EmailField(blank=True, null=True)
     contact = models.CharField(max_length=200, blank=True, null=True, verbose_name='Teléfono del estudiante')
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, null=True, verbose_name='Género')
-    cycle = models.CharField(max_length=20, choices=CYCLE_CHOICES, blank=True, null=True, verbose_name='Ciclo')
+    cycle = models.ForeignKey(
+        Cycle,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='students',
+        verbose_name='Ciclo',
+    )
     student_condition = models.CharField(
         max_length=20,
         choices=STUDENT_CONDITION_CHOICES,

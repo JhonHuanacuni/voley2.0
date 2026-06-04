@@ -4,6 +4,7 @@ from . import views
 from . import views_membership
 from . import views_users
 from . import views_expenses
+from . import views_cycles
 
 urlpatterns = [
     path('login/', views.login_view, name='login'),
@@ -53,6 +54,9 @@ urlpatterns = [
     path('payments/<int:payment_id>/edit/', views.payment_edit_redirect, name='payment_edit'),
     path('payments/<int:payment_id>/delete/', views.payment_delete_redirect, name='payment_delete'),
     path('payments/<int:payment_id>/receipt/', views.payment_receipt, name='payment_receipt'),
+    path('cycles/', views_cycles.cycles_list, name='cycles_list'),
+    path('cycles/<int:cycle_id>/edit/', views_cycles.cycle_edit, name='cycle_edit'),
+    path('cycles/<int:cycle_id>/delete/', views_cycles.cycle_delete, name='cycle_delete'),
     path('shifts/', views.shifts_list, name='shifts_list'),
     path('shifts/add/', views.shift_create, name='shift_add'),
     path('shifts/<int:shift_id>/edit/', views.shift_edit, name='shift_edit'),

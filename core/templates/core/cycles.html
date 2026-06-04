@@ -1,0 +1,81 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Ciclos</h1>
+    <a class="btn btn-primary" href="{% url 'cycles_list' %}"><i class="fas fa-plus"></i> Nuevo ciclo</a>
+</div>
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Lista de ciclos</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Estado</th>
+                                <th>Alumnas</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in cycles %}
+                            <tr>
+                                <td>{{ item.name }}</td>
+                                <td>
+                                    {% if item.is_active %}
+                                    <span class="badge badge-success">Activo</span>
+                                    {% else %}
+                                    <span class="badge badge-secondary">Inactivo</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.student_count }}</td>
+                                <td class="text-nowrap">
+                                    <a class="btn btn-sm btn-info" href="{% url 'cycle_edit' item.id %}">Editar</a>
+                                    <form method="post" action="{% url 'cycle_delete' item.id %}" class="d-inline" onsubmit="return confirm('¿Eliminar este ciclo?');">
+                                        {% csrf_token %}
+                                        <button class="btn btn-sm btn-danger" type="submit" {% if item.student_count %}disabled title="Tiene alumnas asignadas"{% endif %}>Borrar</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4">No hay ciclos registrados.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">{% if edit_mode %}Editar ciclo{% else %}Agregar ciclo{% endif %}</h6>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% if edit_mode %}{% url 'cycle_edit' cycle.id %}{% else %}{% url 'cycles_list' %}{% endif %}">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+                    <div class="form-group">
+                        {{ form.name.label_tag }}
+                        {{ form.name }}
+                        {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
+                    </div>
+                    <div class="form-group form-check">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+                        {% if form.is_active.errors %}<div class="text-danger small">{{ form.is_active.errors }}</div>{% endif %}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                    <a class="btn btn-secondary" href="{% url 'cycles_list' %}">Cancelar</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

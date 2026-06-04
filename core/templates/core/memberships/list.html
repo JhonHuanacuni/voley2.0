@@ -7,14 +7,40 @@
 
 <div class="card shadow mb-4">
     <div class="card-header py-3">
-        <form method="get" class="form-inline flex-wrap">
-            <input type="search" name="q" value="{{ query }}" class="form-control mr-2 mb-2" placeholder="Buscar por nombre o DNI">
-            <select name="status" class="form-control mr-2 mb-2">
-                <option value="">Todos los estados</option>
-                <option value="debt" {% if status_filter == 'debt' %}selected{% endif %}>Deuda</option>
-                <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completada</option>
-            </select>
-            <button class="btn btn-secondary mb-2" type="submit">Filtrar</button>
+        <form method="get" class="form-row align-items-end">
+            <div class="form-group col-md-3 col-lg-2 mb-2">
+                <label class="small text-muted mb-1">Buscar</label>
+                <input type="search" name="q" value="{{ query }}" class="form-control" placeholder="Nombre o DNI">
+            </div>
+            <div class="form-group col-md-3 col-lg-2 mb-2">
+                <label class="small text-muted mb-1">Categoría (ciclo)</label>
+                <select name="cycle" class="form-control">
+                    <option value="">Todas</option>
+                    {% for value, label in cycle_choices %}
+                    <option value="{{ value }}" {% if cycle_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group col-md-3 col-lg-2 mb-2">
+                <label class="small text-muted mb-1">Turno</label>
+                <select name="shift" class="form-control">
+                    <option value="">Todos</option>
+                    {% for value, label in shift_choices %}
+                    <option value="{{ value }}" {% if shift_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group col-md-3 col-lg-2 mb-2">
+                <label class="small text-muted mb-1">Periodo desde</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="form-group col-md-3 col-lg-2 mb-2">
+                <label class="small text-muted mb-1">Periodo hasta</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            <div class="form-group col-md-3 col-lg-1 mb-2">
+                <button class="btn btn-secondary btn-block" type="submit">Filtrar</button>
+            </div>
         </form>
     </div>
     <div class="card-body">
@@ -23,6 +49,8 @@
                 <thead>
                     <tr>
                         <th>Alumna</th>
+                        <th>Categoría</th>
+                        <th>Turno</th>
                         <th>DNI</th>
                         <th>Periodo</th>
                         <th>Monto</th>
@@ -36,6 +64,8 @@
                     {% for m in memberships %}
                     <tr>
                         <td>{{ m.student.name }}</td>
+                        <td>{{ m.student.get_cycle_display|default:"—" }}</td>
+                        <td>{{ m.student.get_shift_display|default:"—" }}</td>
                         <td>{{ m.student.dni|default:"—" }}</td>
                         <td>{{ m.start_date|date:"d/m/Y" }} — {{ m.end_date|date:"d/m/Y" }}</td>
                         <td>S/ {{ m.amount_due }}</td>
@@ -61,7 +91,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="8">No hay membresías registradas.</td></tr>
+                    <tr><td colspan="10">No hay membresías registradas.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

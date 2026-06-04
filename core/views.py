@@ -1,10 +1,11 @@
 ﻿import json
 from datetime import date
 from io import BytesIO
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
@@ -18,10 +19,15 @@ except ImportError:
     qrcode = None
 
 from .forms import PaymentForm, ShiftForm, StudentForm
-from .models import Attendance, Expense, Membership, Payment, Shift, Student
+from .models import Attendance, Expense, Membership, Payment, Shift, Student, active_cycle_choices, valid_cycle_id
 from .receipt_pdf import fill_payment_receipt
 from .attendance_matrix_export import build_attendance_matrix_workbook
-from .attendance_report import get_attendance_chart_stats, get_monthly_enrollments, month_bounds
+from .attendance_report import (
+    get_attendance_chart_stats,
+    get_attendance_by_shift,
+    get_monthly_enrollments,
+    month_bounds,
+)
 
 
 def _today_iso():
@@ -170,13 +176,28 @@ def dashboard_view(request):
         att_start_date, att_end_date = att_end_date, att_start_date
 
     att_shift = request.GET.get('att_shift', '')
-    shift_id = att_shift or None
+    shift_id = int(att_shift) if str(att_shift).isdigit() else None
     attendance_charts = get_attendance_chart_stats(
         att_start_date,
         shift_id,
         today=today_dt,
     )
     monthly_enrollments = get_monthly_enrollments(att_start_date, att_end_date, shift_id)
+
+    chart_end_date = min(att_end_date, today_dt)
+    attendance_by_shift = None
+    if not is_secretary:
+        attendance_by_shift = get_attendance_by_shift(
+            att_start_date,
+            chart_end_date,
+            shift_id,
+        )
+    if att_start_date == chart_end_date:
+        att_shift_chart_period = att_start_date.strftime('%d/%m/%Y')
+    else:
+        att_shift_chart_period = (
+            f'{att_start_date.strftime("%d/%m/%Y")} — {chart_end_date.strftime("%d/%m/%Y")}'
+        )
 
     def _chart_stats_for_json(stats):
         return {
@@ -217,14 +238,61 @@ def dashboard_view(request):
         'att_chart_until_today': json.dumps(_chart_stats_for_json(attendance_charts['until_today'])),
         'monthly_enrollments': monthly_enrollments,
         'shift_choices': [(str(s.id), str(s)) for s in Shift.objects.order_by('name')],
+        'att_shift_chart_period': att_shift_chart_period,
+        'attendance_by_shift_chart': json.dumps(attendance_by_shift) if attendance_by_shift else 'null',
     }
     return render(request, 'core/dashboard.html', context)
+
+
+def _valid_shift_filter(value):
+    if not value or not str(value).isdigit():
+        return ''
+    if Shift.objects.filter(pk=int(value)).exists():
+        return str(value)
+    return ''
+
+
+def _shift_choices():
+    return [(str(shift.id), str(shift)) for shift in Shift.objects.order_by('name')]
+
+
+STUDENT_PAGE_SIZES = (10, 20, 50)
+
+
+def _student_per_page(request):
+    try:
+        size = int(request.GET.get('per_page', 10))
+    except (TypeError, ValueError):
+        return 10
+    return size if size in STUDENT_PAGE_SIZES else 10
+
+
+def _students_list_query_params(request, page=None, per_page=None):
+    params = {}
+    query = request.GET.get('q', '').strip()
+    cycle_filter = valid_cycle_id(request.GET.get('cycle', ''))
+    shift_filter = _valid_shift_filter(request.GET.get('shift', ''))
+    size = per_page if per_page is not None else _student_per_page(request)
+
+    if query:
+        params['q'] = query
+    if cycle_filter:
+        params['cycle'] = cycle_filter
+    if shift_filter:
+        params['shift'] = shift_filter
+    if size != 10:
+        params['per_page'] = str(size)
+    if page:
+        params['page'] = str(page)
+    return params
 
 
 @login_required(login_url='login')
 def student_list(request):
     query = request.GET.get('q', '').strip()
-    students = Student.objects.filter(retired=False).prefetch_related('memberships')
+    cycle_filter = valid_cycle_id(request.GET.get('cycle', ''))
+    shift_filter = _valid_shift_filter(request.GET.get('shift', ''))
+    students = Student.objects.filter(retired=False).select_related('cycle', 'shift').prefetch_related('memberships')
     if query:
         students = students.filter(
             Q(name__icontains=query)
@@ -232,7 +300,14 @@ def student_list(request):
             | Q(dni__icontains=query)
             | Q(email__icontains=query)
         )
+    if cycle_filter:
+        students = students.filter(cycle_id=int(cycle_filter))
+    if shift_filter:
+        students = students.filter(shift_id=int(shift_filter))
     students = students.order_by('name')
+
+    per_page = _student_per_page(request)
+    page_obj = Paginator(students, per_page).get_page(request.GET.get('page'))
 
     if request.method == 'POST':
         form = StudentForm(request.POST)
@@ -243,8 +318,15 @@ def student_list(request):
         form = StudentForm()
 
     context = {
-        'students': students,
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'page_sizes': STUDENT_PAGE_SIZES,
+        'students_query': urlencode(_students_list_query_params(request)),
         'query': query,
+        'cycle_filter': cycle_filter,
+        'cycle_choices': active_cycle_choices(),
+        'shift_filter': shift_filter,
+        'shift_choices': _shift_choices(),
         'form': form,
         'create_mode': True,
     }
@@ -258,7 +340,21 @@ def student_create(request):
         form.save()
         return redirect('students_list')
     students = Student.objects.filter(retired=False).prefetch_related('memberships').order_by('name')
-    return render(request, 'core/students.html', {'students': students, 'form': form, 'create_mode': True})
+    per_page = _student_per_page(request)
+    page_obj = Paginator(students, per_page).get_page(request.GET.get('page'))
+    return render(request, 'core/students.html', {
+        'page_obj': page_obj,
+        'form': form,
+        'create_mode': True,
+        'query': '',
+        'cycle_filter': '',
+        'cycle_choices': active_cycle_choices(),
+        'shift_filter': '',
+        'shift_choices': _shift_choices(),
+        'per_page': per_page,
+        'page_sizes': STUDENT_PAGE_SIZES,
+        'students_query': urlencode(_students_list_query_params(request)),
+    })
 
 
 @login_required(login_url='login')
@@ -269,7 +365,22 @@ def student_edit(request, student_id):
         form.save()
         return redirect('students_list')
     students = Student.objects.filter(retired=False).prefetch_related('memberships').order_by('name')
-    return render(request, 'core/students.html', {'students': students, 'form': form, 'student': student, 'edit_mode': True})
+    per_page = _student_per_page(request)
+    page_obj = Paginator(students, per_page).get_page(request.GET.get('page'))
+    return render(request, 'core/students.html', {
+        'page_obj': page_obj,
+        'form': form,
+        'student': student,
+        'edit_mode': True,
+        'query': '',
+        'cycle_filter': '',
+        'cycle_choices': active_cycle_choices(),
+        'shift_filter': '',
+        'shift_choices': _shift_choices(),
+        'per_page': per_page,
+        'page_sizes': STUDENT_PAGE_SIZES,
+        'students_query': urlencode(_students_list_query_params(request)),
+    })
 
 
 @login_required(login_url='login')

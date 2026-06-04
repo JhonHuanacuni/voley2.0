@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 import calendar
 
-from django.db.models import Q
+from django.db.models import Count, Q
 
 from .models import Attendance, Shift, Student
 
@@ -221,6 +221,59 @@ def get_attendance_chart_stats(reference_date, shift_id=None, today=None):
         'until_today': compute_percentage_stats(month_start, until_today_end, shift_id),
         'month_start': month_start,
         'month_end': month_end,
+    }
+
+
+def _attendance_counts_by_status(qs):
+    by_status = {row['status']: row['n'] for row in qs.values('status').annotate(n=Count('id'))}
+    return (
+        by_status.get('present', 0),
+        by_status.get('absent', 0),
+        by_status.get('late', 0),
+    )
+
+
+def get_attendance_by_shift(start_date, end_date=None, shift_id=None):
+    """Registros de asistencia en un periodo, agrupados por turno."""
+    end_date = end_date or start_date
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
+
+    labels = []
+    present = []
+    absent = []
+    late = []
+
+    def append_counts(label, qs):
+        labels.append(label)
+        p, a, l = _attendance_counts_by_status(qs)
+        present.append(p)
+        absent.append(a)
+        late.append(l)
+
+    shifts = Shift.objects.order_by('name')
+    if shift_id:
+        shifts = shifts.filter(pk=shift_id)
+
+    date_filter = {'date__gte': start_date, 'date__lte': end_date}
+
+    for shift in shifts:
+        qs = Attendance.objects.filter(student__shift=shift, **date_filter)
+        if shift_id or qs.exists():
+            append_counts(str(shift), qs)
+
+    qs_none = Attendance.objects.filter(student__shift__isnull=True, **date_filter)
+    if not shift_id and qs_none.exists():
+        append_counts('Sin turno', qs_none)
+
+    return {
+        'labels': labels,
+        'present': present,
+        'absent': absent,
+        'late': late,
+        'start_date': start_date.isoformat(),
+        'end_date': end_date.isoformat(),
+        'total': sum(present) + sum(absent) + sum(late),
     }
 
 

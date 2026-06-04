@@ -6,9 +6,41 @@
 </div>
 <div class="card shadow mb-4">
     <div class="card-header py-3">
-        <form method="get" class="form-inline">
-            <input type="search" name="q" value="{{ query }}" class="form-control mr-2" placeholder="Buscar por nombre, DNI, email o teléfono">
-            <button class="btn btn-secondary" type="submit">Buscar</button>
+        <form method="get" action="{% url 'students_list' %}" class="form-row align-items-end">
+            <div class="form-group col-md-6 col-lg-3 mb-2">
+                <label class="small text-muted mb-1">Buscar</label>
+                <input type="search" name="q" value="{{ query }}" class="form-control" placeholder="Nombre, DNI, email o teléfono">
+            </div>
+            <div class="form-group col-md-6 col-lg-2 mb-2">
+                <label class="small text-muted mb-1">Categoría (ciclo)</label>
+                <select name="cycle" class="form-control">
+                    <option value="">Todas</option>
+                    {% for value, label in cycle_choices %}
+                    <option value="{{ value }}" {% if cycle_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group col-md-6 col-lg-2 mb-2">
+                <label class="small text-muted mb-1">Turno</label>
+                <select name="shift" class="form-control">
+                    <option value="">Todos</option>
+                    {% for value, label in shift_choices %}
+                    <option value="{{ value }}" {% if shift_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group col-md-6 col-lg-2 mb-2">
+                <label class="small text-muted mb-1">Por página</label>
+                <select name="per_page" class="form-control">
+                    {% for size in page_sizes %}
+                    <option value="{{ size }}" {% if per_page == size %}selected{% endif %}>{{ size }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group col-md-6 col-lg-2 mb-2">
+                <label class="small text-muted mb-1">&nbsp;</label>
+                <button class="btn btn-secondary btn-block" type="submit">Filtrar</button>
+            </div>
         </form>
     </div>
     <div class="card-body">
@@ -27,7 +59,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for student in students %}
+                    {% for student in page_obj %}
                     <tr>
                         <td>{{ student.name }}</td>
                         <td>{{ student.get_cycle_display|default:"—" }}</td>
@@ -59,6 +91,48 @@
                 </tbody>
             </table>
         </div>
+        {% if page_obj %}
+        <div class="d-flex flex-wrap justify-content-between align-items-center mt-3">
+            <p class="text-muted small mb-2 mb-md-0">
+                Mostrando {{ page_obj.start_index }}–{{ page_obj.end_index }} de {{ page_obj.paginator.count }} alumna{{ page_obj.paginator.count|pluralize:"s" }}
+            </p>
+            {% if page_obj.paginator.num_pages > 1 %}
+            <nav aria-label="Páginas de alumnas">
+                <ul class="pagination pagination-sm mb-0 flex-wrap">
+                    <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                        {% if page_obj.has_previous %}
+                        <a class="page-link" href="?{% if students_query %}{{ students_query }}&{% endif %}page=1">«</a>
+                        {% else %}<span class="page-link">«</span>{% endif %}
+                    </li>
+                    <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                        {% if page_obj.has_previous %}
+                        <a class="page-link" href="?{% if students_query %}{{ students_query }}&{% endif %}page={{ page_obj.previous_page_number }}">‹</a>
+                        {% else %}<span class="page-link">‹</span>{% endif %}
+                    </li>
+                    {% for num in page_obj.paginator.page_range %}
+                    <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                        {% if page_obj.number == num %}
+                        <span class="page-link">{{ num }}</span>
+                        {% else %}
+                        <a class="page-link" href="?{% if students_query %}{{ students_query }}&{% endif %}page={{ num }}">{{ num }}</a>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                    <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                        {% if page_obj.has_next %}
+                        <a class="page-link" href="?{% if students_query %}{{ students_query }}&{% endif %}page={{ page_obj.next_page_number }}">›</a>
+                        {% else %}<span class="page-link">›</span>{% endif %}
+                    </li>
+                    <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                        {% if page_obj.has_next %}
+                        <a class="page-link" href="?{% if students_query %}{{ students_query }}&{% endif %}page={{ page_obj.paginator.num_pages }}">»</a>
+                        {% else %}<span class="page-link">»</span>{% endif %}
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 </div>
 {% if create_mode or edit_mode %}
