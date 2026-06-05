@@ -55,6 +55,13 @@
                             <td>{{ payment.get_method_display }}</td>
                             <td>
                                 <a class="btn btn-sm btn-success" href="{% url 'membership_payment_receipt' membership.id payment.id %}" target="_blank">Recibo</a>
+                                {% if membership.student.whatsapp_url %}
+                                <button type="button" class="btn btn-sm btn-success send-receipt" data-receipt-url="{% url 'membership_payment_receipt' membership.id payment.id %}" data-whatsapp-url="{{ membership.student.whatsapp_url }}" data-student-name="{{ membership.student.name }}">
+                                    Enviar
+                                </button>
+                                {% else %}
+                                <button type="button" class="btn btn-sm btn-secondary" disabled title="No hay WhatsApp del apoderado">Enviar</button>
+                                {% endif %}
                                 {% if not is_secretary %}
                                 <form method="post" action="{% url 'membership_payment_delete' membership.id payment.id %}" class="d-inline" onsubmit="return confirm('¿Eliminar este pago?');">
                                     {% csrf_token %}
@@ -72,4 +79,25 @@
         </div>
     </div>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.send-receipt').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var receiptUrl = button.dataset.receiptUrl;
+                var whatsappUrl = button.dataset.whatsappUrl;
+                var studentName = button.dataset.studentName || 'amiga';
+                if (!whatsappUrl) {
+                    alert('No hay un número de WhatsApp válido para el apoderado.');
+                    return;
+                }
+                var message = 'Hola ' + studentName + '! Somos VOLEY VITA y este es tu recibo. Gracias por tu pago. Si necesitas algo, escríbenos aquí.';
+                window.open(whatsappUrl + '?text=' + encodeURIComponent(message), '_blank');
+                var iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = receiptUrl;
+                document.body.appendChild(iframe);
+            });
+        });
+    });
+</script>
 {% endblock %}

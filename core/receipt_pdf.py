@@ -17,6 +17,8 @@ TEMPLATE_PATH = (
 PAGE_WIDTH = 595.56
 PAGE_HEIGHT = 842.04
 FONT_SIZE = 12
+# Distancia entre el texto y la línea inferior (igual que CLIENTE / TELÉFONO).
+TEXT_ABOVE_LINE = 14
 
 # Posiciones medidas desde la plantilla (coordenada top de pdfplumber).
 FIELD_POSITIONS = {
@@ -29,9 +31,15 @@ FIELD_POSITIONS = {
     'address': (115, 214),
     'email': (90, 243),
     'phone': (460, 243),
-    'description': (70, 323),
-    'amount': (500, 322),
-    'total': (500, 510),
+    'description': (70, 384),
+    'amount': (500, 384),
+    'total': (500, 574),
+}
+
+# Campos con subrayado en plantilla: line_top = fila de la línea ________.
+UNDERLINE_FIELDS = {
+    'shift': {'text_x': 92, 'line_top': 289},
+    'payment_method': {'text_x': 154, 'line_top': 320},
 }
 
 
@@ -51,6 +59,16 @@ def _draw_text(c, text, x, top, size=FONT_SIZE, align='left'):
         c.drawCentredString(x, y, text)
     else:
         c.drawString(x, y, text)
+
+
+def _draw_text_above_underline(c, text, text_x, line_top, size=FONT_SIZE):
+    """Escribe el valor encima de la línea ________ sin borrarla."""
+    if not text:
+        return
+    text = str(text).upper()
+    text_top = line_top - TEXT_ABOVE_LINE
+    c.setFont('Helvetica', size)
+    c.drawString(text_x, _baseline(text_top, offset=size), text)
 
 
 def _cover_placeholder(c, x, top, width, height):
@@ -83,6 +101,20 @@ def fill_payment_receipt(payment, student, month_name):
     _draw_text(c, student.address or '', *FIELD_POSITIONS['address'])
     _draw_text(c, student.email or '', *FIELD_POSITIONS['email'])
     _draw_text(c, student.contact or '', *FIELD_POSITIONS['phone'])
+    shift_field = UNDERLINE_FIELDS['shift']
+    _draw_text_above_underline(
+        c,
+        student.get_shift_display() or '',
+        shift_field['text_x'],
+        shift_field['line_top'],
+    )
+    method_field = UNDERLINE_FIELDS['payment_method']
+    _draw_text_above_underline(
+        c,
+        payment.get_method_display() or '',
+        method_field['text_x'],
+        method_field['line_top'],
+    )
     _draw_text(c, description, *FIELD_POSITIONS['description'])
     _draw_text(c, amount, *FIELD_POSITIONS['amount'], align='right')
     _draw_text(c, amount, *FIELD_POSITIONS['total'], align='right')
