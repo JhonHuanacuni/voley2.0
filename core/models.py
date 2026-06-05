@@ -406,6 +406,36 @@ class Payment(models.Model):
     def __str__(self):
         return f"{self.student.name} - {self.amount} - {self.date}"
 
+
+class Sale(models.Model):
+    name = models.CharField(max_length=200, verbose_name='Nombre')
+    shift = models.ForeignKey(
+        Shift,
+        on_delete=models.PROTECT,
+        related_name='sales',
+        verbose_name='Turno',
+    )
+    size = models.CharField(
+        max_length=5,
+        choices=SIZE_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name='Talla',
+    )
+    observation = models.TextField(blank=True, null=True, verbose_name='Observación')
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Precio (S/.)')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Venta'
+        verbose_name_plural = 'Ventas'
+
+    def __str__(self):
+        size = f' ({self.size})' if self.size else ''
+        return f'{self.name} - {self.shift}{size} - S/ {self.price:.2f}'
+
+
 class Expense(models.Model):
     date = models.DateField(default=timezone.now, verbose_name='Fecha')
     concept = models.CharField(max_length=200, verbose_name='Concepto')

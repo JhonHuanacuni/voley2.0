@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Attendance, Cycle, Expense, Membership, Payment, Shift, Student, UserProfile
+from .models import Attendance, Cycle, Expense, Membership, Payment, Sale, Shift, Student, UserProfile
 
 
 @admin.register(Membership)
@@ -59,6 +59,13 @@ class ExpenseAdmin(admin.ModelAdmin):
     list_filter = ('payment_method', 'date')
     search_fields = ('concept', 'provider', 'observations')
     date_hierarchy = 'date'
+
+
+@admin.register(Sale)
+class SaleAdmin(admin.ModelAdmin):
+    list_display = ('name', 'shift', 'size', 'price', 'created_at')
+    search_fields = ('name', 'observation')
+    list_filter = ('shift', 'size', 'created_at')
 
 
 @admin.register(UserProfile)

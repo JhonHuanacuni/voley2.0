@@ -1,4 +1,13 @@
-# SQLite
+# SQLite (no versionar la base de datos local/producción)
 #db.sqlite3
 #*.sqlite3
 #*.sqlite
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Entorno / estáticos generados
+.venv/
+staticfiles/

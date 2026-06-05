@@ -7,7 +7,9 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from .models import Attendance, Student
+from django.db.models import Prefetch
+
+from .models import Attendance, Membership, Student
 
 WEEKDAY_ABBR_ES = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom']
 
@@ -24,6 +26,9 @@ SUNDAY_HEADER_FONT = Font(name='Calibri', size=10, bold=True, color='000000')
 FILL_WHITE = PatternFill(start_color='FFFFFF', end_color='FFFFFF', fill_type='solid')
 FILL_ABSENT = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')
 FONT_ABSENT = Font(name='Calibri', size=10, bold=True, color='FFFFFF')
+FILL_MEMBERSHIP_OK = PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid')
+FILL_MEMBERSHIP_DEBT = PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid')
+MEMBERSHIP_COL_WIDTH = 22
 DATA_FONT = Font(name='Calibri', size=10)
 THIN_BORDER = Border(
     left=Side(style='thin', color='000000'),
@@ -65,12 +70,46 @@ def _day_header(target_date):
     return f'{abbr} {target_date.day:02d}'
 
 
-def build_attendance_matrix_workbook(year, month, student_id=None, shift_id=None):
+def _membership_payment_cell(student):
+    membership = student.memberships.all()[:1]
+    membership = membership[0] if membership else None
+    if not membership:
+        return 'Sin membresía', None
+
+    paid = sum(float(payment.amount) for payment in membership.payments.all())
+    due = float(membership.amount_due)
+    text = f'S/ {paid:.2f}'
+
+    if due <= 0:
+        return 'No se colocó monto de membresía', False
+
+    if paid >= due:
+        return text, True
+
+    return text, False
+
+
+def build_attendance_matrix_workbook(
+    year,
+    month,
+    student_id=None,
+    shift_id=None,
+    include_membership_payment=False,
+):
     _, days_in_month = calendar.monthrange(year, month)
     month_start = date(year, month, 1)
     month_end = date(year, month, days_in_month)
 
-    students = Student.objects.filter(retired=False).select_related('shift').order_by('name')
+    membership_prefetch = Prefetch(
+        'memberships',
+        queryset=Membership.objects.order_by('-end_date', '-created_at').prefetch_related('payments'),
+    )
+    students = (
+        Student.objects.filter(retired=False)
+        .select_related('shift')
+        .prefetch_related(membership_prefetch)
+        .order_by('name')
+    )
     if student_id:
         students = students.filter(pk=student_id)
     if shift_id:
@@ -94,6 +133,8 @@ def build_attendance_matrix_workbook(year, month, student_id=None, shift_id=None
         'HORARIO',
         'ESTADO',
     ]
+    if include_membership_payment:
+        fixed_headers.append('PAGO\nMEMBRESÍA')
     day_headers = [_day_header(date(year, month, day)) for day in range(1, days_in_month + 1)]
     tail_headers = ['', 'TOTAL\nASIST', 'TOTAL\nTARD', 'TOTAL\nFALTAS']
     headers = fixed_headers + day_headers + tail_headers
@@ -104,6 +145,7 @@ def build_attendance_matrix_workbook(year, month, student_id=None, shift_id=None
 
     first_day_col = len(fixed_headers) + 1
     last_day_col = first_day_col + days_in_month - 1
+    membership_col = len(fixed_headers) if include_membership_payment else None
     total_asist_col = last_day_col + 2
     total_tard_col = last_day_col + 3
     total_faltas_col = last_day_col + 4
@@ -141,6 +183,10 @@ def build_attendance_matrix_workbook(year, month, student_id=None, shift_id=None
             (shift.schedule if shift else 'VOLEY VITA'),
             _enrollment_label(student),
         ]
+        membership_payment_state = None
+        if include_membership_payment:
+            payment_text, membership_payment_state = _membership_payment_cell(student)
+            row_values.append(payment_text)
 
         total_asist = 0
         total_tard = 0
@@ -186,6 +232,12 @@ def build_attendance_matrix_workbook(year, month, student_id=None, shift_id=None
                 elif value == 'F':
                     cell.fill = FILL_ABSENT
                     cell.font = FONT_ABSENT
+            elif membership_col and col_idx == membership_col:
+                cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+                if membership_payment_state is True:
+                    cell.fill = FILL_MEMBERSHIP_OK
+                elif membership_payment_state is False:
+                    cell.fill = FILL_MEMBERSHIP_DEBT
             elif col_idx in (total_asist_col, total_tard_col, total_faltas_col):
                 cell.alignment = Alignment(horizontal='center', vertical='center')
 
@@ -195,6 +247,8 @@ def build_attendance_matrix_workbook(year, month, student_id=None, shift_id=None
     ws.column_dimensions['D'].width = 12
     ws.column_dimensions['E'].width = 16
     ws.column_dimensions['F'].width = 10
+    if include_membership_payment and membership_col:
+        ws.column_dimensions[get_column_letter(membership_col)].width = MEMBERSHIP_COL_WIDTH
     for col_idx in range(first_day_col, last_day_col + 1):
         ws.column_dimensions[get_column_letter(col_idx)].width = 4.5
     ws.column_dimensions[get_column_letter(last_day_col + 1)].width = 2

@@ -128,6 +128,21 @@
             </div>
         </div>
     </div>
+    {% if user_role == 'admin' %}
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-secondary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">Ventas del mes</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">S/ {{ sales_month_total }}</div>
+                    </div>
+                    <div class="col-auto"><i class="fas fa-shopping-bag fa-2x text-gray-300"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
     {% endif %}
 </div>
 
@@ -427,7 +442,10 @@
                                 const total = items.reduce(function(sum, item) {
                                     return sum + item.parsed.y;
                                 }, 0);
-                                return 'Total turno: ' + total;
+                                const idx = items[0].dataIndex;
+                                const present = (attendanceByShift.present && attendanceByShift.present[idx]) ? attendanceByShift.present[idx] : 0;
+                                const expected = (attendanceByShift.expected && attendanceByShift.expected[idx]) ? attendanceByShift.expected[idx] : 0;
+                                return 'Total turno: ' + total + ' · Asistencia: ' + present + '/' + expected;
                             },
                         },
                     },

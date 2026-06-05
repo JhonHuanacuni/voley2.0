@@ -19,7 +19,7 @@ except ImportError:
     qrcode = None
 
 from .forms import PaymentForm, ShiftForm, StudentForm
-from .models import Attendance, Expense, Membership, Payment, Shift, Student, active_cycle_choices, valid_cycle_id
+from .models import Attendance, Expense, Membership, Payment, Sale, Shift, Student, active_cycle_choices, valid_cycle_id
 from .receipt_pdf import fill_payment_receipt
 from .attendance_matrix_export import build_attendance_matrix_workbook
 from .attendance_report import (
@@ -156,6 +156,9 @@ def dashboard_view(request):
                 pass
     user_role = get_user_role(request.user)
     is_secretary = user_role == 'secretary'
+    sales_month_total = 0
+    if user_role == 'admin':
+        sales_month_total = Sale.objects.filter(created_at__gte=_first_of_month()).aggregate(total=Sum('price'))['total'] or 0
 
     att_period = request.GET.get('att_period', 'monthly')
     if att_period not in ('daily', 'weekly', 'monthly'):
@@ -223,6 +226,7 @@ def dashboard_view(request):
         'payments_by_month_data': json.dumps(payments_by_month_data),
         'expenses_month_total': expenses_month_total,
         'expenses_total': f'{expenses_month_total:.2f}',
+        'sales_month_total': sales_month_total,
         'expenses_by_month_labels': json.dumps(expenses_by_month_labels),
         'expenses_by_month_data': json.dumps(expenses_by_month_data),
         'debt_count': debt_count,
@@ -979,8 +983,15 @@ def export_attendance_xlsx(request):
 
     student_id = request.GET.get('student') or None
     shift_id = request.GET.get('shift') or None
+    include_membership_payment = get_user_role(request.user) == 'admin'
 
-    wb = build_attendance_matrix_workbook(year, month, student_id, shift_id)
+    wb = build_attendance_matrix_workbook(
+        year,
+        month,
+        student_id,
+        shift_id,
+        include_membership_payment=include_membership_payment,
+    )
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = (
         f'attachment; filename=vita_voley_asistencia_{year}_{month:02d}.xlsx'

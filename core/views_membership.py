@@ -1,7 +1,10 @@
 import json
 from datetime import date, timedelta
 
+from urllib.parse import urlencode
+
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -12,8 +15,9 @@ from .models import Membership, Payment, Shift, Student, active_cycle_choices, v
 from .receipt_pdf import fill_payment_receipt
 from .views import get_user_role
 
-_MEMBERSHIP_FILTER_KEYS = ('q', 'cycle', 'shift', 'date_from', 'date_to')
-_PAYMENT_FILTER_KEYS = ('membership', 'cycle', 'shift', 'date_from', 'date_to')
+_MEMBERSHIP_FILTER_KEYS = ('q', 'cycle', 'shift', 'date_from', 'date_to', 'per_page')
+_PAYMENT_FILTER_KEYS = ('membership', 'cycle', 'shift', 'date_from', 'date_to', 'per_page')
+PAGE_SIZES = (10, 20, 50)
 
 MONTHS_ES = {
     1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
@@ -50,8 +54,40 @@ def _shift_choices():
     return [(str(shift.id), str(shift)) for shift in Shift.objects.order_by('name')]
 
 
+def _per_page(request):
+    try:
+        size = int(request.GET.get('per_page', 10))
+    except (TypeError, ValueError):
+        return 10
+    return size if size in PAGE_SIZES else 10
+
+
 def _filter_query_params(request, keys):
-    return {key: request.GET.get(key, '').strip() for key in keys if request.GET.get(key, '').strip()}
+    params = {key: request.GET.get(key, '').strip() for key in keys if request.GET.get(key, '').strip()}
+    per_page = _per_page(request)
+    if per_page != 10 and 'per_page' in keys:
+        params['per_page'] = str(per_page)
+    return params
+
+
+def _membership_list_query_params(request, page=None):
+    params = _filter_query_params(request, _MEMBERSHIP_FILTER_KEYS)
+    if page:
+        params['page'] = str(page)
+    return params
+
+
+def _payment_list_query_params(request, page=None):
+    params = _filter_query_params(request, _PAYMENT_FILTER_KEYS)
+    if page:
+        params['page'] = str(page)
+    return params
+
+
+def _paginate(qs, request):
+    per_page = _per_page(request)
+    page_obj = Paginator(qs, per_page).get_page(request.GET.get('page'))
+    return page_obj, per_page
 
 
 def _append_query_params(url, params):
@@ -129,6 +165,9 @@ def _membership_list_filter_defaults():
         'shift_filter': '',
         'date_from': '',
         'date_to': '',
+        'per_page': 10,
+        'page_sizes': PAGE_SIZES,
+        'list_query': '',
     }
 
 
@@ -141,6 +180,9 @@ def _payment_list_filter_defaults():
         'shift_filter': '',
         'date_from': '',
         'date_to': '',
+        'per_page': 10,
+        'page_sizes': PAGE_SIZES,
+        'list_query': '',
     }
 
 
@@ -160,9 +202,13 @@ def _default_renew_end(start):
 @login_required(login_url='login')
 def membership_list(request):
     memberships, filter_ctx = _apply_membership_list_filters(_membership_queryset(), request)
+    page_obj, per_page = _paginate(memberships, request)
 
     return render(request, 'core/memberships/list.html', {
-        'memberships': memberships,
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'page_sizes': PAGE_SIZES,
+        'list_query': urlencode(_membership_list_query_params(request)),
         'cycle_choices': active_cycle_choices(),
         'is_secretary': _is_secretary(request.user),
         **filter_ctx,
@@ -175,8 +221,10 @@ def membership_create(request):
     if request.method == 'POST' and form.is_valid():
         form.save()
         return redirect('memberships_list')
+    page_obj, per_page = _paginate(_membership_queryset(), request)
     return render(request, 'core/memberships/list.html', {
-        'memberships': _membership_queryset(),
+        'page_obj': page_obj,
+        'per_page': per_page,
         'form': form,
         'create_mode': True,
         'is_secretary': _is_secretary(request.user),
@@ -192,8 +240,10 @@ def membership_edit(request, membership_id):
         membership = form.save()
         membership.recalculate_status()
         return redirect('memberships_list')
+    page_obj, per_page = _paginate(_membership_queryset(), request)
     return render(request, 'core/memberships/list.html', {
-        'memberships': _membership_queryset(),
+        'page_obj': page_obj,
+        'per_page': per_page,
         'form': form,
         'membership': membership,
         'edit_mode': True,
@@ -305,8 +355,11 @@ def membership_payment_add(request):
     if request.method == 'POST' and form.is_valid():
         form.save()
         return redirect('membership_payments_list')
+    payments_qs = Payment.objects.select_related('membership', 'student').order_by('-date')
+    page_obj, per_page = _paginate(payments_qs, request)
     return render(request, 'core/memberships/payments_list.html', {
-        'payments': Payment.objects.select_related('membership', 'student').order_by('-date'),
+        'page_obj': page_obj,
+        'per_page': per_page,
         'memberships': _membership_queryset(),
         'form': form,
         'create_mode': True,
@@ -335,8 +388,12 @@ def membership_payments_list(request):
         )
         return redirect(url)
 
+    page_obj, per_page = _paginate(payments, request)
     return render(request, 'core/memberships/payments_list.html', {
-        'payments': payments,
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'page_sizes': PAGE_SIZES,
+        'list_query': urlencode(_payment_list_query_params(request)),
         'memberships': memberships,
         'form': form,
         'cycle_choices': active_cycle_choices(),
@@ -366,8 +423,12 @@ def membership_payment_edit(request, payment_id):
     payments_qs = Payment.objects.select_related('membership', 'student').order_by('-date')
     payments, filter_ctx = _apply_payment_list_filters(payments_qs, request)
 
+    page_obj, per_page = _paginate(payments, request)
     return render(request, 'core/memberships/payments_list.html', {
-        'payments': payments,
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'page_sizes': PAGE_SIZES,
+        'list_query': urlencode(_payment_list_query_params(request)),
         'memberships': _membership_queryset(),
         'form': form,
         'payment': payment,

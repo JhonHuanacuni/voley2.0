@@ -29,7 +29,7 @@
         <div class="card shadow mb-4">
             <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Filtro</h6></div>
             <div class="card-body">
-                <form method="get" class="form-row align-items-end">
+                <form method="get" action="{% url 'membership_payments_list' %}" class="form-row align-items-end">
                     <div class="form-group col-md-4 col-lg-3 mb-2">
                         <label class="small text-muted mb-1">Membresía</label>
                         <select name="membership" class="form-control">
@@ -67,7 +67,16 @@
                         <label class="small text-muted mb-1">Pago hasta</label>
                         <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
                     </div>
+                    <div class="form-group col-md-4 col-lg-2 mb-2">
+                        <label class="small text-muted mb-1">Por página</label>
+                        <select name="per_page" class="form-control">
+                            {% for size in page_sizes %}
+                            <option value="{{ size }}" {% if per_page == size %}selected{% endif %}>{{ size }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <div class="form-group col-md-4 col-lg-1 mb-2">
+                        <label class="small text-muted mb-1">&nbsp;</label>
                         <button class="btn btn-secondary btn-block" type="submit">Filtrar</button>
                     </div>
                 </form>
@@ -87,7 +96,7 @@
                         <tr><th>Alumna</th><th>Categoría</th><th>Turno</th><th>Membresía</th><th>Fecha</th><th>Monto</th><th>Método</th><th>Acciones</th></tr>
                     </thead>
                     <tbody>
-                        {% for payment in payments %}
+                        {% for payment in page_obj %}
                         <tr>
                             <td>{{ payment.student.name }}</td>
                             <td>{{ payment.student.get_cycle_display|default:"—" }}</td>
@@ -125,6 +134,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                {% include 'core/_pagination.html' with item_label='pago' %}
             </div>
         </div>
     </div>

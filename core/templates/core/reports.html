@@ -72,6 +72,9 @@
                 <p class="card-text">
                     Planilla por días del mes con marcas <strong>A</strong> (asistió), <strong>T</strong> (tarde) y <strong>F</strong> (falta),
                     más totales al final.
+                    {% if not is_secretary %}
+                    Incluye columna de pago de la membresía más reciente (verde = completado, rojo = pendiente).
+                    {% endif %}
                 </p>
                 <a class="btn btn-primary" href="{% url 'export_attendance_xlsx' %}?year={{ report_year }}&month={{ report_month }}{% if selected_student %}&student={{ selected_student }}{% endif %}{% if selected_shift %}&shift={{ selected_shift }}{% endif %}">Exportar Excel</a>
             </div>

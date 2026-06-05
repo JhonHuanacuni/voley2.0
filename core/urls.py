@@ -5,6 +5,7 @@ from . import views_membership
 from . import views_users
 from . import views_expenses
 from . import views_cycles
+from . import views_sales
 
 urlpatterns = [
     path('login/', views.login_view, name='login'),
@@ -69,6 +70,9 @@ urlpatterns = [
     path('expenses/add/', views_expenses.expense_create, name='expense_add'),
     path('expenses/<int:expense_id>/edit/', views_expenses.expense_edit, name='expense_edit'),
     path('expenses/<int:expense_id>/delete/', views_expenses.expense_delete, name='expense_delete'),
+    # Módulo Ventas (solo admin)
+    path('sales/', views_sales.sales_list, name='sales_list'),
+    path('sales/<int:sale_id>/delete/', views_sales.sale_delete, name='sale_delete'),
     path('reports/', views.report_view, name='reports'),
     path('reports/export/students/', views.export_students_xlsx, name='export_students_xlsx'),
     path('reports/export/attendance/', views.export_attendance_xlsx, name='export_attendance_xlsx'),

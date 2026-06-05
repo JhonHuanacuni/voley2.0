@@ -4,7 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.forms import DateInput
 from datetime import date
-from .models import Attendance, Cycle, Expense, Membership, Payment, Shift, Student, UserProfile
+from .models import Attendance, Cycle, Expense, Membership, Payment, Sale, Shift, Student, UserProfile
 from .weekdays import WEEKDAY_ORDER_MON_FIRST
 
 
@@ -447,6 +447,36 @@ class ExpenseForm(forms.ModelForm):
         date_field.input_formats = ['%Y-%m-%d']
         if self.instance.pk and self.instance.date:
             date_field.widget.attrs['value'] = self.instance.date.strftime('%Y-%m-%d')
+
+
+class SaleForm(forms.ModelForm):
+    shift = forms.ModelChoiceField(
+        queryset=Shift.objects.none(),
+        empty_label='Seleccione turno',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Turno',
+    )
+
+    class Meta:
+        model = Sale
+        fields = ['name', 'shift', 'size', 'price', 'observation']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del producto/servicio'}),
+            'size': forms.Select(attrs={'class': 'form-control'}),
+            'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'observation': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Observación'}),
+        }
+        labels = {
+            'name': 'Nombre',
+            'size': 'Talla',
+            'price': 'Precio',
+            'observation': 'Observación',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['shift'].queryset = Shift.objects.order_by('name')
+        self.fields['size'].empty_label = 'Seleccione talla'
 
 
 class SystemUserCreateForm(forms.Form):

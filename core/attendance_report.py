@@ -243,6 +243,12 @@ def get_attendance_by_shift(start_date, end_date=None, shift_id=None):
     present = []
     absent = []
     late = []
+    expected = []
+
+    def weekday_index(d):
+        # Lunes=1 ... Sábado=6, Domingo=0 (misma convención que _weekday_from_date()).
+        wd = d.weekday()  # Lunes=0 ... Domingo=6
+        return wd + 1 if wd < 6 else 0
 
     def append_counts(label, qs):
         labels.append(label)
@@ -256,21 +262,68 @@ def get_attendance_by_shift(start_date, end_date=None, shift_id=None):
         shifts = shifts.filter(pk=shift_id)
 
     date_filter = {'date__gte': start_date, 'date__lte': end_date}
+    # Lista de "días de la semana" para cada día del rango (incluyendo ambos extremos).
+    date_weekdays = []
+    current = start_date
+    while current <= end_date:
+        date_weekdays.append(weekday_index(current))
+        current += timedelta(days=1)
+
+    shift_ids = list(shifts.values_list('id', flat=True))
+    active_student_counts_by_shift = {
+        row['shift_id']: row['cnt']
+        for row in Student.objects.filter(
+            retired=False,
+            enrollment_status='active',
+            shift_id__in=shift_ids,
+        ).values('shift_id').annotate(cnt=Count('id'))
+    }
 
     for shift in shifts:
         qs = Attendance.objects.filter(student__shift=shift, **date_filter)
         if shift_id or qs.exists():
             append_counts(str(shift), qs)
+            active_students_count = active_student_counts_by_shift.get(shift.id, 0)
+            active_days_count = sum(
+                1 for wd in date_weekdays
+                if shift.is_active_on_weekday(wd)
+            )
+            expected.append(active_students_count * active_days_count)
 
     qs_none = Attendance.objects.filter(student__shift__isnull=True, **date_filter)
     if not shift_id and qs_none.exists():
         append_counts('Sin turno', qs_none)
+
+        sin_turn_students = Student.objects.filter(
+            retired=False,
+            enrollment_status='active',
+            shift__isnull=True,
+        ).only('attendance_days')
+
+        # Conteo de alumnos "Sin turno" que atienden cada día de la semana.
+        counts_by_weekday = [0] * 7
+        for s in sin_turn_students:
+            days = s.attendance_days or []
+            if not days or len(days) == 7:
+                for wd in range(7):
+                    counts_by_weekday[wd] += 1
+            else:
+                for wd in days:
+                    if 0 <= wd < 7:
+                        counts_by_weekday[wd] += 1
+
+        expected_total = sum(
+            counts_by_weekday[wd]
+            for wd in date_weekdays
+        )
+        expected.append(expected_total)
 
     return {
         'labels': labels,
         'present': present,
         'absent': absent,
         'late': late,
+        'expected': expected,
         'start_date': start_date.isoformat(),
         'end_date': end_date.isoformat(),
         'total': sum(present) + sum(absent) + sum(late),
