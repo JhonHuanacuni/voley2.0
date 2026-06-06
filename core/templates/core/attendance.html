@@ -9,6 +9,22 @@
         <div class="card shadow">
             <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Registro de asistencia</h6></div>
             <div class="card-body">
+                <div class="mb-3 position-relative">
+                    <label for="attendance_student_search">Buscar alumna</label>
+                    <input
+                        type="text"
+                        id="attendance_student_search"
+                        class="form-control"
+                        autocomplete="off"
+                        placeholder="Escriba al menos 3 letras del nombre..."
+                    >
+                    <div
+                        id="attendance_student_search_results"
+                        class="list-group position-absolute w-100 shadow-sm d-none"
+                        style="z-index: 20; max-height: 220px; overflow-y: auto;"
+                    ></div>
+                </div>
+
                 <form method="get" class="form-row align-items-end mb-3">
                     <div class="col">
                         <label for="attendance_date">Fecha</label>
@@ -36,7 +52,7 @@
                         <div></div>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-bordered">
+                        <table class="table table-bordered" id="attendance-table">
                             <thead>
                                 <tr>
                                     <th>Alumna</th>
@@ -48,7 +64,7 @@
                             </thead>
                             <tbody>
                                 {% for student in students %}
-                                <tr>
+                                <tr data-student-id="{{ student.id }}" data-student-name="{{ student.name }}">
                                     <td>{{ student.name }}</td>
                                     <td>{{ student.get_shift_display }}</td>
                                     <td>
@@ -141,4 +157,95 @@
         </div>
     </div>
 </div>
+<script>
+(function () {
+    const searchInput = document.getElementById('attendance_student_search');
+    const resultsBox = document.getElementById('attendance_student_search_results');
+    const table = document.getElementById('attendance-table');
+    if (!searchInput || !resultsBox || !table) return;
+
+    const rows = Array.from(table.querySelectorAll('tbody tr[data-student-id]'));
+    let timer = null;
+
+    function normalize(value) {
+        return (value || '').toLowerCase().trim();
+    }
+
+    function hideResults() {
+        resultsBox.innerHTML = '';
+        resultsBox.classList.add('d-none');
+    }
+
+    function showAllRows() {
+        rows.forEach(function (row) {
+            row.classList.remove('d-none', 'table-primary');
+        });
+    }
+
+    function filterRows(matches) {
+        const matchIds = new Set(matches.map(function (item) { return item.id; }));
+        rows.forEach(function (row) {
+            row.classList.toggle('d-none', !matchIds.has(row.dataset.studentId));
+            row.classList.remove('table-primary');
+        });
+    }
+
+    function renderResults(matches) {
+        resultsBox.innerHTML = '';
+        if (!matches.length) {
+            resultsBox.innerHTML = '<div class="list-group-item text-muted">Sin coincidencias</div>';
+            resultsBox.classList.remove('d-none');
+            return;
+        }
+        matches.forEach(function (item) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'list-group-item list-group-item-action';
+            btn.textContent = item.name;
+            btn.addEventListener('click', function () {
+                searchInput.value = item.name;
+                hideResults();
+                filterRows([item]);
+                item.row.classList.add('table-primary');
+                item.row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+            resultsBox.appendChild(btn);
+        });
+        resultsBox.classList.remove('d-none');
+    }
+
+    function currentStudents() {
+        return rows.map(function (row) {
+            return {
+                id: row.dataset.studentId,
+                name: row.dataset.studentName || '',
+                row: row,
+            };
+        });
+    }
+
+    searchInput.addEventListener('input', function () {
+        const q = normalize(searchInput.value);
+        clearTimeout(timer);
+        if (q.length < 3) {
+            hideResults();
+            showAllRows();
+            return;
+        }
+        timer = setTimeout(function () {
+            const matches = currentStudents().filter(function (item) {
+                return normalize(item.name).includes(q);
+            });
+            filterRows(matches);
+            renderResults(matches);
+        }, 200);
+    });
+
+    document.addEventListener('click', function (event) {
+        if (!resultsBox.contains(event.target) && event.target !== searchInput) {
+            hideResults();
+        }
+    });
+})();
+</script>
 {% endblock %}

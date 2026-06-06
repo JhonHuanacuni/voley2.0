@@ -28,7 +28,7 @@ FILL_ABSENT = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='s
 FONT_ABSENT = Font(name='Calibri', size=10, bold=True, color='FFFFFF')
 FILL_MEMBERSHIP_OK = PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid')
 FILL_MEMBERSHIP_DEBT = PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid')
-MEMBERSHIP_COL_WIDTH = 22
+MEMBERSHIP_COL_WIDTH = 26
 DATA_FONT = Font(name='Calibri', size=10)
 THIN_BORDER = Border(
     left=Side(style='thin', color='000000'),
@@ -70,23 +70,39 @@ def _day_header(target_date):
     return f'{abbr} {target_date.day:02d}'
 
 
-def _membership_payment_cell(student):
+def _membership_payment_cell(student, month_start, month_end):
     membership = student.memberships.all()[:1]
     membership = membership[0] if membership else None
     if not membership:
         return 'Sin membresía', None
 
-    paid = sum(float(payment.amount) for payment in membership.payments.all())
     due = float(membership.amount_due)
-    text = f'S/ {paid:.2f}'
-
     if due <= 0:
         return 'No se colocó monto de membresía', False
 
-    if paid >= due:
-        return text, True
+    paid_total = sum(float(payment.amount) for payment in membership.payments.all())
+    is_complete = paid_total >= due
 
-    return text, False
+    payments_in_month = sorted(
+        (
+            payment
+            for payment in membership.payments.all()
+            if month_start <= payment.date <= month_end
+        ),
+        key=lambda payment: payment.date,
+    )
+
+    if payments_in_month:
+        text = '\n'.join(
+            f'S/ {float(payment.amount):.2f} - {payment.date.strftime("%d/%m/%Y")}'
+            for payment in payments_in_month
+        )
+        return text, is_complete
+
+    if is_complete:
+        return 'Sin pago en el mes', True
+
+    return 'Sin pago en el mes', False
 
 
 def build_attendance_matrix_workbook(
@@ -185,7 +201,11 @@ def build_attendance_matrix_workbook(
         ]
         membership_payment_state = None
         if include_membership_payment:
-            payment_text, membership_payment_state = _membership_payment_cell(student)
+            payment_text, membership_payment_state = _membership_payment_cell(
+                student,
+                month_start,
+                month_end,
+            )
             row_values.append(payment_text)
 
         total_asist = 0
