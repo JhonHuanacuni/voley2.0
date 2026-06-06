@@ -158,7 +158,7 @@ def dashboard_view(request):
     is_secretary = user_role == 'secretary'
     sales_month_total = 0
     if user_role == 'admin':
-        sales_month_total = Sale.objects.filter(created_at__gte=_first_of_month()).aggregate(total=Sum('price'))['total'] or 0
+        sales_month_total = Sale.objects.filter(created_at__date__gte=_first_of_month()).aggregate(total=Sum('price'))['total'] or 0
 
     att_period = request.GET.get('att_period', 'monthly')
     if att_period not in ('daily', 'weekly', 'monthly'):

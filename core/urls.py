@@ -5,6 +5,7 @@ from . import views_membership
 from . import views_users
 from . import views_expenses
 from . import views_cycles
+from . import views_financial
 from . import views_sales
 
 urlpatterns = [
@@ -78,4 +79,6 @@ urlpatterns = [
     path('reports/export/attendance/', views.export_attendance_xlsx, name='export_attendance_xlsx'),
     path('reports/export/enrollments/', views.export_monthly_enrollments_xlsx, name='export_monthly_enrollments_xlsx'),
     path('reports/export/payments/', views.export_payments_xlsx, name='export_payments_xlsx'),
+    path('reports/financial/', views_financial.financial_report_view, name='financial_report'),
+    path('reports/export/financial/', views_financial.export_financial_report_xlsx, name='export_financial_report_xlsx'),
 ]

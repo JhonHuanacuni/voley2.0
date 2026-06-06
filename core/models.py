@@ -435,6 +435,10 @@ class Sale(models.Model):
         size = f' ({self.size})' if self.size else ''
         return f'{self.name} - {self.shift}{size} - S/ {self.price:.2f}'
 
+    @property
+    def sale_date(self):
+        return self.created_at.date() if self.created_at else timezone.localdate()
+
 
 class Expense(models.Model):
     date = models.DateField(default=timezone.now, verbose_name='Fecha')

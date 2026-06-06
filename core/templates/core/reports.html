@@ -84,6 +84,19 @@
     <div class="col-lg-4 mb-4">
         <div class="card shadow h-100">
             <div class="card-body">
+                <h5 class="card-title">Ingresos y egresos</h5>
+                <p class="card-text">
+                    Reporte mensual con ventas, resumen de ingresos, egresos y utilidad.
+                    Listo para descargar en Excel y enviar.
+                </p>
+                <a class="btn btn-primary" href="{% url 'financial_report' %}?year={{ report_year }}&month={{ report_month }}">Ver reporte</a>
+                <a class="btn btn-success ml-2" href="{% url 'export_financial_report_xlsx' %}?year={{ report_year }}&month={{ report_month }}">Excel</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-body">
                 <h5 class="card-title">Pagos</h5>
                 <p class="card-text">Descarga el historial de pagos.</p>
                 <a class="btn btn-primary" href="{% url 'export_payments_xlsx' %}{% if selected_student %}?student={{ selected_student }}{% endif %}">Exportar Excel</a>

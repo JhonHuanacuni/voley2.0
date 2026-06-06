@@ -4,6 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 
+from django.db.models import Sum
+
 from .forms import SaleForm
 from .models import Sale
 from .views import _ensure_admin
@@ -62,9 +64,11 @@ def sales_list(request):
             form = SaleForm()
 
     sales_qs = Sale.objects.select_related('shift').order_by('-created_at')
+    sales_total = sales_qs.aggregate(total=Sum('price'))['total'] or 0
     page_obj, per_page = _paginate(sales_qs, request)
     return render(request, 'core/sales/list.html', {
         'page_obj': page_obj,
+        'sales_total': sales_total,
         'per_page': per_page,
         'page_sizes': PAGE_SIZES,
         'list_query': urlencode(_sales_list_query_params(request)),

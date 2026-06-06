@@ -1,0 +1,123 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Reporte de ingresos y egresos</h1>
+    <a class="btn btn-secondary" href="{% url 'reports' %}">Volver a reportes</a>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Filtro del periodo</h6>
+    </div>
+    <div class="card-body">
+        <form method="get" class="form-row align-items-end">
+            <div class="col-md-3 mb-2">
+                <label for="report_month">Mes</label>
+                <select id="report_month" name="month" class="form-control">
+                    <option value="1"{% if report_month == 1 %} selected{% endif %}>Enero</option>
+                    <option value="2"{% if report_month == 2 %} selected{% endif %}>Febrero</option>
+                    <option value="3"{% if report_month == 3 %} selected{% endif %}>Marzo</option>
+                    <option value="4"{% if report_month == 4 %} selected{% endif %}>Abril</option>
+                    <option value="5"{% if report_month == 5 %} selected{% endif %}>Mayo</option>
+                    <option value="6"{% if report_month == 6 %} selected{% endif %}>Junio</option>
+                    <option value="7"{% if report_month == 7 %} selected{% endif %}>Julio</option>
+                    <option value="8"{% if report_month == 8 %} selected{% endif %}>Agosto</option>
+                    <option value="9"{% if report_month == 9 %} selected{% endif %}>Septiembre</option>
+                    <option value="10"{% if report_month == 10 %} selected{% endif %}>Octubre</option>
+                    <option value="11"{% if report_month == 11 %} selected{% endif %}>Noviembre</option>
+                    <option value="12"{% if report_month == 12 %} selected{% endif %}>Diciembre</option>
+                </select>
+            </div>
+            <div class="col-md-2 mb-2">
+                <label for="report_year">Año</label>
+                <input type="number" id="report_year" name="year" class="form-control" min="2020" max="2100" value="{{ report_year }}">
+            </div>
+            <div class="col-md-3 mb-2">
+                <button class="btn btn-primary" type="submit">Ver reporte</button>
+                <a
+                    class="btn btn-success ml-2"
+                    href="{% url 'export_financial_report_xlsx' %}?year={{ report_year }}&month={{ report_month }}"
+                >
+                    <i class="fas fa-file-excel"></i> Descargar Excel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">Egresos — {{ summary.month_label }} {{ report_year }}</h6>
+        <span class="badge badge-primary">Total egresos: S/ {{ summary.egresos|floatformat:2 }}</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm mb-0">
+                <thead style="background-color:#f4cccc;">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Concepto</th>
+                        <th>Proveedor</th>
+                        <th>Monto (S/.)</th>
+                        <th>Medio de pago</th>
+                        <th>Observaciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in summary.expenses %}
+                    <tr>
+                        <td>{{ expense.date|date:"d/m/Y" }}</td>
+                        <td>{{ expense.concept }}</td>
+                        <td>{{ expense.provider|default:"—" }}</td>
+                        <td>S/ {{ expense.amount|floatformat:2 }}</td>
+                        <td>{{ expense.get_payment_method_display }}</td>
+                        <td>{{ expense.observations|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted">Sin egresos en este periodo.</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr style="background-color:#d9d2e9;" class="font-weight-bold">
+                        <td colspan="3" class="text-right">TOTAL</td>
+                        <td>S/ {{ summary.egresos|floatformat:2 }}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Resumen financiero</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered text-center mb-0" style="max-width:720px;">
+                <thead style="background-color:#f4cccc;">
+                    <tr>
+                        <th>MES ANTERIOR</th>
+                        <th>INGRESOS</th>
+                        <th>EGRESOS</th>
+                        <th>UTILIDAD</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="background-color:#f4cccc;" class="font-weight-bold">
+                        <td>S/ {{ summary.mes_anterior|floatformat:2 }}</td>
+                        <td>S/ {{ summary.ingresos|floatformat:2 }}</td>
+                        <td>S/ {{ summary.egresos|floatformat:2 }}</td>
+                        <td>S/ {{ summary.utilidad|floatformat:2 }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="text-muted small mt-3 mb-0">
+            Ingresos = pagos de membresía (S/ {{ summary.payments_total|floatformat:2 }}) + ventas (S/ {{ summary.sales_total|floatformat:2 }}).
+            Utilidad = Mes anterior + Ingresos − Egresos.
+        </p>
+    </div>
+</div>
+{% endblock %}

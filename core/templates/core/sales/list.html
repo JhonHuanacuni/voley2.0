@@ -40,7 +40,7 @@
                                 <td>{{ item.name }}</td>
                                 <td>{{ item.shift }}</td>
                                 <td>{{ item.size|default:"—" }}</td>
-                                <td>S/ {{ item.price }}</td>
+                                <td>S/ {{ item.price|floatformat:2 }}</td>
                                 <td>{{ item.observation|default:"—" }}</td>
                                 <td class="text-nowrap">
                                     <a class="btn btn-sm btn-info" href="?edit={{ item.id }}{% if per_page != 10 %}&per_page={{ per_page }}{% endif %}">Editar</a>
@@ -60,6 +60,15 @@
                             <tr><td colspan="6">No hay ventas registradas.</td></tr>
                             {% endfor %}
                         </tbody>
+                        {% if sales_total %}
+                        <tfoot>
+                            <tr class="font-weight-bold bg-light">
+                                <td colspan="3" class="text-right">TOTAL</td>
+                                <td>S/ {{ sales_total|floatformat:2 }}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
                     </table>
                 </div>
                 {% include 'core/_pagination.html' with item_label='venta' %}
@@ -116,7 +125,6 @@
     </div>
 </div>
 
-<!-- Modal propio (sin confirm() del navegador) -->
 <div class="modal fade" id="confirmSaleDeleteModal" tabindex="-1" role="dialog" aria-labelledby="confirmSaleDeleteModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -151,4 +159,3 @@
     }
 </script>
 {% endblock %}
-
