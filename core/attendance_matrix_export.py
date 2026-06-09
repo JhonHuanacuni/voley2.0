@@ -70,39 +70,41 @@ def _day_header(target_date):
     return f'{abbr} {target_date.day:02d}'
 
 
+def _membership_for_month(student, month_start, month_end):
+    for membership in student.memberships.all():
+        if membership.start_date <= month_end and membership.end_date >= month_start:
+            return membership
+    memberships = student.memberships.all()
+    return memberships[0] if memberships else None
+
+
 def _membership_payment_cell(student, month_start, month_end):
-    membership = student.memberships.all()[:1]
-    membership = membership[0] if membership else None
+    membership = _membership_for_month(student, month_start, month_end)
     if not membership:
         return 'Sin membresía', None
 
     due = float(membership.amount_due)
     if due <= 0:
-        return 'No se colocó monto de membresía', False
+        return 'No se colocó monto de membresía', None
 
-    paid_total = sum(float(payment.amount) for payment in membership.payments.all())
-    is_complete = paid_total >= due
+    expiry_str = membership.end_date.strftime('%d/%m/%Y')
+    header = f'TOTAL: S/ {due:.2f} - {expiry_str}'
 
-    payments_in_month = sorted(
-        (
-            payment
-            for payment in membership.payments.all()
-            if month_start <= payment.date <= month_end
-        ),
-        key=lambda payment: payment.date,
-    )
+    all_payments = sorted(membership.payments.all(), key=lambda payment: payment.date)
+    payment_lines = [
+        f'S/ {float(payment.amount):.2f} - {payment.date.strftime("%d/%m/%Y")}'
+        for payment in all_payments
+    ]
 
-    if payments_in_month:
-        text = '\n'.join(
-            f'S/ {float(payment.amount):.2f} - {payment.date.strftime("%d/%m/%Y")}'
-            for payment in payments_in_month
-        )
-        return text, is_complete
+    paid_total = sum(float(payment.amount) for payment in all_payments)
+    balance = max(due - paid_total, 0)
+    is_complete = balance <= 0
 
-    if is_complete:
-        return 'Sin pago en el mes', True
+    lines = [header, *payment_lines]
+    if not is_complete:
+        lines.append(f'Pendiente: S/ {balance:.2f}')
 
-    return 'Sin pago en el mes', False
+    return '\n'.join(lines), is_complete
 
 
 def build_attendance_matrix_workbook(
