@@ -18,9 +18,12 @@ try:
 except ImportError:
     qrcode = None
 
+from django.utils import timezone
+
 from .forms import PaymentForm, ShiftForm, StudentForm
 from .models import Attendance, Expense, Membership, Payment, Sale, Shift, Student, active_cycle_choices, valid_cycle_id
 from .receipt_pdf import fill_payment_receipt
+from .time_utils import local_datetime_from
 from .attendance_matrix_export import build_attendance_matrix_workbook
 from .attendance_report import (
     get_attendance_chart_stats,
@@ -35,7 +38,7 @@ def _today_iso():
 
 
 def _first_of_month():
-    today = date.today()
+    today = timezone.localdate()
     return date(today.year, today.month, 1)
 
 
@@ -158,7 +161,9 @@ def dashboard_view(request):
     is_secretary = user_role == 'secretary'
     sales_month_total = 0
     if user_role == 'admin':
-        sales_month_total = Sale.objects.filter(created_at__date__gte=_first_of_month()).aggregate(total=Sum('price'))['total'] or 0
+        sales_month_total = Sale.objects.filter(
+            created_at__gte=local_datetime_from(_first_of_month()),
+        ).aggregate(total=Sum('price'))['total'] or 0
 
     att_period = request.GET.get('att_period', 'monthly')
     if att_period not in ('daily', 'weekly', 'monthly'):

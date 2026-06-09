@@ -437,7 +437,9 @@ class Sale(models.Model):
 
     @property
     def sale_date(self):
-        return self.created_at.date() if self.created_at else timezone.localdate()
+        if self.created_at:
+            return timezone.localtime(self.created_at).date()
+        return timezone.localdate()
 
 
 class Expense(models.Model):

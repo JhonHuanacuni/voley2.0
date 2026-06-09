@@ -14,6 +14,14 @@ TEMPLATE_PATH = (
     / 'plantilla Voley Vita.pdf'
 )
 
+SALE_TEMPLATE_PATH = (
+    Path(settings.BASE_DIR)
+    / 'core'
+    / 'static'
+    / 'template Venta'
+    / 'plantilla Voley Vita Ventas.pdf'
+)
+
 PAGE_WIDTH = 595.56
 PAGE_HEIGHT = 842.04
 FONT_SIZE = 12
@@ -40,6 +48,24 @@ FIELD_POSITIONS = {
 UNDERLINE_FIELDS = {
     'shift': {'text_x': 92, 'line_top': 289},
     'payment_method': {'text_x': 154, 'line_top': 320},
+}
+
+SALE_FIELD_POSITIONS = {
+    'sale_number': (492, 80),
+    'date_day': (451, 128),
+    'date_month': (481, 128),
+    'date_year': (521, 128),
+    'description': (70, 322),
+    'amount': (500, 322),
+    'total': (500, 510),
+}
+
+# Plantilla: TALLA arriba a la derecha (junto a NOMBRE), TURNO abajo a la izquierda.
+SALE_UNDERLINE_FIELDS = {
+    'name': {'text_x': 115, 'line_top': 198},
+    'size': {'text_x': 500, 'line_top': 198.56},
+    'observation': {'text_x': 150, 'line_top': 227.63},
+    'shift': {'text_x': 105, 'line_top': 256.69},
 }
 
 
@@ -122,9 +148,13 @@ def fill_payment_receipt(payment, student, month_name):
     c.save()
     packet.seek(0)
 
-    reader = PdfReader(str(TEMPLATE_PATH))
+    return _merge_template(TEMPLATE_PATH, packet)
+
+
+def _merge_template(template_path, overlay_packet):
+    reader = PdfReader(str(template_path))
     page = reader.pages[0]
-    page.merge_page(PdfReader(packet).pages[0])
+    page.merge_page(PdfReader(overlay_packet).pages[0])
 
     output = BytesIO()
     writer = PdfWriter()
@@ -132,3 +162,60 @@ def fill_payment_receipt(payment, student, month_name):
     writer.write(output)
     output.seek(0)
     return output
+
+
+def fill_sale_receipt(sale):
+    if not SALE_TEMPLATE_PATH.exists():
+        raise FileNotFoundError(f'No se encontró la plantilla PDF: {SALE_TEMPLATE_PATH}')
+
+    sale_date = sale.sale_date
+    amount = f'S/ {sale.price:.2f}'
+    description = sale.name
+    sale_number = str(sale.id).zfill(6)
+
+    day = sale_date.strftime('%d')
+    month = sale_date.strftime('%m')
+    year = sale_date.strftime('%Y')
+
+    packet = BytesIO()
+    c = canvas.Canvas(packet, pagesize=(PAGE_WIDTH, PAGE_HEIGHT))
+
+    _draw_text(c, f'N° {sale_number}', *SALE_FIELD_POSITIONS['sale_number'], align='center')
+    _draw_text(c, day, *SALE_FIELD_POSITIONS['date_day'], align='center')
+    _draw_text(c, month, *SALE_FIELD_POSITIONS['date_month'], align='center')
+    _draw_text(c, year, *SALE_FIELD_POSITIONS['date_year'], align='center')
+
+    name_field = SALE_UNDERLINE_FIELDS['name']
+    _draw_text_above_underline(c, sale.name or '', name_field['text_x'], name_field['line_top'])
+
+    size_field = SALE_UNDERLINE_FIELDS['size']
+    _draw_text_above_underline(
+        c,
+        sale.size or '',
+        size_field['text_x'],
+        size_field['line_top'],
+    )
+
+    observation_field = SALE_UNDERLINE_FIELDS['observation']
+    _draw_text_above_underline(
+        c,
+        sale.observation or '',
+        observation_field['text_x'],
+        observation_field['line_top'],
+    )
+
+    shift_field = SALE_UNDERLINE_FIELDS['shift']
+    _draw_text_above_underline(
+        c,
+        str(sale.shift) if sale.shift_id else '',
+        shift_field['text_x'],
+        shift_field['line_top'],
+    )
+
+    _draw_text(c, description, *SALE_FIELD_POSITIONS['description'])
+    _draw_text(c, amount, *SALE_FIELD_POSITIONS['amount'], align='right')
+    _draw_text(c, amount, *SALE_FIELD_POSITIONS['total'], align='right')
+
+    c.save()
+    packet.seek(0)
+    return _merge_template(SALE_TEMPLATE_PATH, packet)

@@ -2,12 +2,14 @@ from urllib.parse import urlencode
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from django.db.models import Sum
 
 from .forms import SaleForm
 from .models import Sale
+from .receipt_pdf import fill_sale_receipt
 from .views import _ensure_admin
 
 PAGE_SIZES = (10, 20, 50)
@@ -88,4 +90,17 @@ def sale_delete(request, sale_id):
     if request.method == 'POST':
         sale.delete()
     return redirect('sales_list')
+
+
+@login_required(login_url='login')
+def sale_receipt(request, sale_id):
+    admin_redirect = _ensure_admin(request)
+    if admin_redirect:
+        return admin_redirect
+
+    sale = get_object_or_404(Sale.objects.select_related('shift'), pk=sale_id)
+    buffer = fill_sale_receipt(sale)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="recibo_venta_{sale.id}.pdf"'
+    return response
 

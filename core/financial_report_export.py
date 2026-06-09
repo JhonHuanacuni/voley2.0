@@ -9,6 +9,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 from .models import Expense, Payment, Sale
+from .time_utils import local_datetime_range
 
 HEADER_FILL = PatternFill(start_color='F4CCCC', end_color='F4CCCC', fill_type='solid')
 TOTAL_FILL = PatternFill(start_color='D9D2E9', end_color='D9D2E9', fill_type='solid')
@@ -52,8 +53,9 @@ def _sum_payments(start_date, end_date):
 
 
 def _sum_sales(start_date, end_date):
+    range_start, range_end = local_datetime_range(start_date, end_date)
     return float(
-        Sale.objects.filter(created_at__date__gte=start_date, created_at__date__lte=end_date)
+        Sale.objects.filter(created_at__gte=range_start, created_at__lte=range_end)
         .aggregate(total=Sum('price'))['total'] or 0
     )
 

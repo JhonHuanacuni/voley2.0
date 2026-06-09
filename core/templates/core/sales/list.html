@@ -43,6 +43,7 @@
                                 <td>S/ {{ item.price|floatformat:2 }}</td>
                                 <td>{{ item.observation|default:"—" }}</td>
                                 <td class="text-nowrap">
+                                    <a class="btn btn-sm btn-success" href="{% url 'sale_receipt' item.id %}" target="_blank">Recibo</a>
                                     <a class="btn btn-sm btn-info" href="?edit={{ item.id }}{% if per_page != 10 %}&per_page={{ per_page }}{% endif %}">Editar</a>
                                     <form method="post" action="{% url 'sale_delete' item.id %}" class="d-inline" id="delete-sale-{{ item.id }}">
                                         {% csrf_token %}
