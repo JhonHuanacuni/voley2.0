@@ -16,12 +16,42 @@
         </p>
         <form method="post">
             {% csrf_token %}
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+            <h6 class="font-weight-bold text-primary mb-3">Nueva membresía</h6>
             <div class="form-row">
-                <div class="form-group col-md-4">{{ form.start_date.label_tag }} {{ form.start_date }}</div>
-                <div class="form-group col-md-4">{{ form.end_date.label_tag }} {{ form.end_date }}</div>
-                <div class="form-group col-md-4">{{ form.amount_due.label_tag }} {{ form.amount_due }}</div>
+                <div class="form-group col-md-4">
+                    {{ form.start_date.label_tag }} {{ form.start_date }}
+                    {% if form.start_date.errors %}<div class="text-danger small">{{ form.start_date.errors }}</div>{% endif %}
+                </div>
+                <div class="form-group col-md-4">
+                    {{ form.end_date.label_tag }} {{ form.end_date }}
+                    {% if form.end_date.errors %}<div class="text-danger small">{{ form.end_date.errors }}</div>{% endif %}
+                </div>
+                <div class="form-group col-md-4">
+                    {{ form.amount_due.label_tag }} {{ form.amount_due }}
+                    {% if form.amount_due.errors %}<div class="text-danger small">{{ form.amount_due.errors }}</div>{% endif %}
+                </div>
             </div>
             <div class="form-group">{{ form.notes.label_tag }} {{ form.notes }}</div>
+
+            <hr class="my-4">
+            <h6 class="font-weight-bold text-primary mb-3">Pago de la membresía (opcional)</h6>
+            <p class="text-muted small mb-3">
+                Si la alumna paga al renovar, regístralo aquí. La fecha del pago se guardará automáticamente:
+                <strong>{{ payment_date|date:"d/m/Y" }}</strong> (hora Perú).
+            </p>
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    {{ form.payment_amount.label_tag }} {{ form.payment_amount }}
+                    {% if form.payment_amount.errors %}<div class="text-danger small">{{ form.payment_amount.errors }}</div>{% endif %}
+                </div>
+                <div class="form-group col-md-6">
+                    {{ form.payment_method.label_tag }} {{ form.payment_method }}
+                    {% if form.payment_method.errors %}<div class="text-danger small">{{ form.payment_method.errors }}</div>{% endif %}
+                </div>
+            </div>
+
             <button class="btn btn-primary" type="submit">Crear renovación</button>
             <a class="btn btn-secondary" href="{% url 'memberships_list' %}">Cancelar</a>
         </form>

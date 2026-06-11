@@ -9,6 +9,7 @@ from django.db.models import Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 
 from .forms import MembershipForm, MembershipRenewForm, PaymentForm
 from .models import Membership, Payment, Shift, Student, active_cycle_choices, valid_cycle_id
@@ -219,7 +220,8 @@ def membership_list(request):
 def membership_create(request):
     form = MembershipForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
-        form.save()
+        membership = form.save()
+        Membership.sync_student_dates(membership.student)
         return redirect('memberships_list')
     page_obj, per_page = _paginate(_membership_queryset(), request)
     return render(request, 'core/memberships/list.html', {
@@ -239,6 +241,7 @@ def membership_edit(request, membership_id):
     if request.method == 'POST' and form.is_valid():
         membership = form.save()
         membership.recalculate_status()
+        Membership.sync_student_dates(membership.student)
         return redirect('memberships_list')
     page_obj, per_page = _paginate(_membership_queryset(), request)
     return render(request, 'core/memberships/list.html', {
@@ -257,7 +260,9 @@ def membership_delete(request, membership_id):
     if _is_secretary(request.user):
         return redirect('memberships_list')
     membership = get_object_or_404(Membership, pk=membership_id)
+    student = membership.student
     membership.delete()
+    Membership.sync_student_dates(student)
     return redirect('memberships_list')
 
 
@@ -283,15 +288,23 @@ def membership_renew(request, membership_id):
             renewed_from=old,
             status='debt',
         )
-        renewed.recalculate_status()
-        student = old.student
-        student.membership_start = renewed.start_date
-        student.membership_end = renewed.end_date
-        student.save(update_fields=['membership_start', 'membership_end'])
+        payment_amount = form.cleaned_data.get('payment_amount')
+        if payment_amount and payment_amount > 0:
+            Payment.objects.create(
+                membership=renewed,
+                student=old.student,
+                date=timezone.localdate(),
+                amount=payment_amount,
+                method=form.cleaned_data.get('payment_method') or 'efectivo',
+            )
+        else:
+            renewed.recalculate_status()
+        Membership.sync_student_dates(old.student)
         return redirect('memberships_list')
     return render(request, 'core/memberships/renew.html', {
         'form': form,
         'membership': old,
+        'payment_date': timezone.localdate(),
         'is_secretary': _is_secretary(request.user),
     })
 

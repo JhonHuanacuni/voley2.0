@@ -61,3 +61,8 @@ def update_membership_after_payment_delete(sender, instance, **kwargs):
             Membership.objects.get(pk=membership_id).recalculate_status()
         except Membership.DoesNotExist:
             pass
+
+
+@receiver(post_delete, sender=Membership)
+def sync_student_after_membership_delete(sender, instance, **kwargs):
+    Membership.sync_student_dates(instance.student)

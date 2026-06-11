@@ -4,7 +4,18 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.forms import DateInput
 from datetime import date
-from .models import Attendance, Cycle, Expense, Membership, Payment, Sale, Shift, Student, UserProfile
+from .models import (
+    Attendance,
+    Cycle,
+    Expense,
+    Membership,
+    PAYMENT_METHOD_CHOICES,
+    Payment,
+    Sale,
+    Shift,
+    Student,
+    UserProfile,
+)
 from .weekdays import WEEKDAY_ORDER_MON_FIRST
 
 
@@ -288,6 +299,24 @@ class MembershipRenewForm(forms.ModelForm):
         input_formats=['%Y-%m-%d', '%d/%m/%Y'],
         label='Nuevo fin',
     )
+    payment_amount = forms.DecimalField(
+        required=False,
+        min_value=0,
+        label='Monto del pago (opcional)',
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'step': '0.01',
+            'min': '0',
+            'placeholder': '0.00',
+        }),
+    )
+    payment_method = forms.ChoiceField(
+        choices=PAYMENT_METHOD_CHOICES,
+        required=False,
+        initial='efectivo',
+        label='Método de pago',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
 
     class Meta:
         model = Membership
@@ -314,6 +343,13 @@ class MembershipRenewForm(forms.ModelForm):
                 self.fields[field_name].initial = value.isoformat()
             elif value:
                 self.fields[field_name].initial = value
+
+    def clean(self):
+        cleaned = super().clean()
+        amount = cleaned.get('payment_amount')
+        if amount is not None and amount <= 0:
+            cleaned['payment_amount'] = None
+        return cleaned
 
 
 class AttendanceForm(forms.ModelForm):

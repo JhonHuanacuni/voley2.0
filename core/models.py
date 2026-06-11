@@ -224,20 +224,28 @@ class Student(models.Model):
         return weekday in days
 
     def _membership_period(self):
-        """Devuelve (inicio, fin) usando las fechas del formulario de la alumna."""
+        """Devuelve (inicio, fin) según la membresía vigente en base de datos."""
         from datetime import timedelta
+
+        today = timezone.localdate()
+
+        current = self.memberships.filter(
+            start_date__lte=today,
+            end_date__gte=today,
+        ).order_by('-end_date').first()
+        if current:
+            return current.start_date, current.end_date
+
+        upcoming = self.memberships.filter(start_date__gt=today).order_by('start_date').first()
+        if upcoming:
+            return upcoming.start_date, upcoming.end_date
+
+        latest = self.memberships.order_by('-end_date', '-created_at').first()
+        if latest:
+            return latest.start_date, latest.end_date
 
         if self.membership_start and self.membership_end:
             return self.membership_start, self.membership_end
-
-        membership = self.memberships.filter(
-            start_date__lte=timezone.localdate(),
-            end_date__gte=timezone.localdate(),
-        ).order_by('-end_date').first()
-        if not membership:
-            membership = self.memberships.order_by('-end_date', '-created_at').first()
-        if membership:
-            return membership.start_date, membership.end_date
 
         start = self.membership_start
         end = self.membership_end
@@ -365,6 +373,23 @@ class Membership(models.Model):
         due = float(self.amount_due)
         self.status = 'completed' if paid >= due else 'debt'
         self.save(update_fields=['status'])
+
+    @staticmethod
+    def sync_student_dates(student):
+        """Mantiene membership_start/end del alumno alineados con sus membresías reales."""
+        membership = (
+            student.memberships.order_by('-end_date', '-created_at').first()
+        )
+        if membership:
+            Student.objects.filter(pk=student.pk).update(
+                membership_start=membership.start_date,
+                membership_end=membership.end_date,
+            )
+        else:
+            Student.objects.filter(pk=student.pk).update(
+                membership_start=None,
+                membership_end=None,
+            )
 
 
 class Attendance(models.Model):
