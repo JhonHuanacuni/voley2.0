@@ -11,13 +11,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from .forms import MembershipForm, MembershipRenewForm, PaymentForm
+from .forms import MembershipForm, MembershipRenewForm, PaymentCreateForm, PaymentForm
 from .models import Membership, Payment, Shift, Student, active_cycle_choices, valid_cycle_id
 from .receipt_pdf import fill_payment_receipt
 from .views import get_user_role
 
 _MEMBERSHIP_FILTER_KEYS = ('q', 'cycle', 'shift', 'date_from', 'date_to', 'per_page')
-_PAYMENT_FILTER_KEYS = ('membership', 'cycle', 'shift', 'date_from', 'date_to', 'per_page')
+_PAYMENT_FILTER_KEYS = ('student', 'cycle', 'shift', 'date_from', 'date_to', 'per_page')
 PAGE_SIZES = (10, 20, 50)
 
 MONTHS_ES = {
@@ -129,14 +129,36 @@ def _apply_membership_list_filters(qs, request):
     }
 
 
+def _student_filter_label(student):
+    parts = [student.name]
+    if student.dni:
+        parts.append(f'DNI: {student.dni}')
+    return ' — '.join(parts)
+
+
+def _payment_filter_student_context(student_id_str):
+    if not student_id_str or not str(student_id_str).isdigit():
+        return {'selected_student': '', 'selected_student_label': ''}
+    student = Student.objects.filter(pk=int(student_id_str), retired=False).first()
+    if not student:
+        return {'selected_student': '', 'selected_student_label': ''}
+    return {
+        'selected_student': str(student.pk),
+        'selected_student_label': _student_filter_label(student),
+    }
+
+
 def _apply_payment_list_filters(qs, request):
+    student_filter = request.GET.get('student', '').strip()
     membership_filter = request.GET.get('membership', '').strip()
     cycle_filter = valid_cycle_id(request.GET.get('cycle', ''))
     shift_filter = _valid_shift_id(request.GET.get('shift', ''))
     date_from = _parse_date_param(request.GET.get('date_from', ''))
     date_to = _parse_date_param(request.GET.get('date_to', ''))
 
-    if membership_filter.isdigit():
+    if student_filter.isdigit():
+        qs = qs.filter(student_id=int(student_filter))
+    elif membership_filter.isdigit():
         qs = qs.filter(membership_id=int(membership_filter))
     if cycle_filter:
         qs = qs.filter(student__cycle_id=int(cycle_filter))
@@ -147,13 +169,14 @@ def _apply_payment_list_filters(qs, request):
     if date_to:
         qs = qs.filter(date__lte=date_to)
 
+    student_ctx = _payment_filter_student_context(student_filter)
     return qs, {
-        'selected_membership': membership_filter if membership_filter.isdigit() else '',
         'cycle_filter': cycle_filter,
         'shift_filter': shift_filter,
         'shift_choices': _shift_choices(),
         'date_from': request.GET.get('date_from', ''),
         'date_to': request.GET.get('date_to', ''),
+        **student_ctx,
     }
 
 
@@ -176,7 +199,8 @@ def _payment_list_filter_defaults():
     return {
         'cycle_choices': active_cycle_choices(),
         'shift_choices': _shift_choices(),
-        'selected_membership': '',
+        'selected_student': '',
+        'selected_student_label': '',
         'cycle_filter': '',
         'shift_filter': '',
         'date_from': '',
@@ -198,6 +222,122 @@ def _default_renew_end(start):
         return start.replace(month=start.month + 1)
     except ValueError:
         return start + timedelta(days=30)
+
+
+def _latest_membership(student):
+    return student.memberships.order_by('-end_date', '-created_at').first()
+
+
+def _create_renewed_membership(old):
+    default_start = old.end_date + timedelta(days=1) if old.end_date >= date.today() else date.today()
+    default_end = _default_renew_end(default_start)
+    return Membership.objects.create(
+        student=old.student,
+        start_date=default_start,
+        end_date=default_end,
+        amount_due=old.student.monthly_fee or old.amount_due,
+        notes=f'Renovación automática de membresía #{old.pk}',
+        renewed_from=old,
+        status='debt',
+    )
+
+
+def _student_payment_status(student):
+    membership = _latest_membership(student)
+    if not membership:
+        return {
+            'has_membership': False,
+            'status': 'no_membership',
+            'message': 'Sin membresía registrada. Se creará al registrar el pago.',
+            'balance': 0.0,
+        }
+    balance = float(membership.balance)
+    period = (
+        f'{membership.start_date.strftime("%d/%m/%Y")} — '
+        f'{membership.end_date.strftime("%d/%m/%Y")}'
+    )
+    if balance <= 0:
+        return {
+            'has_membership': True,
+            'status': 'completed',
+            'message': 'Pagos al día. Al registrar el pago se creará su nueva membresía.',
+            'balance': 0.0,
+            'membership_id': membership.pk,
+        }
+    return {
+        'has_membership': True,
+        'status': 'debt',
+        'message': f'Debe S/ {balance:.2f} de la membresía ({period}).',
+        'balance': balance,
+        'membership_id': membership.pk,
+    }
+
+
+def _register_student_payment(student, amount, payment_date, method, confirm_new_membership=False):
+    """
+    Registra un pago y crea membresía cuando corresponde.
+    Retorna (payment, None) o (None, código de error).
+    """
+    amount = float(amount)
+    latest = _latest_membership(student)
+
+    if not latest:
+        start = student.membership_start or date.today()
+        end = student.membership_end or _default_renew_end(start)
+        latest = Membership.objects.create(
+            student=student,
+            start_date=start,
+            end_date=end,
+            amount_due=student.monthly_fee or amount,
+            status='debt',
+        )
+
+    balance = float(latest.balance)
+
+    if balance <= 0:
+        new_membership = _create_renewed_membership(latest)
+        payment = Payment.objects.create(
+            membership=new_membership,
+            student=student,
+            date=payment_date,
+            amount=amount,
+            method=method,
+        )
+        Membership.sync_student_dates(student)
+        return payment, None
+
+    if amount > balance and not confirm_new_membership:
+        return None, 'confirm_new_membership'
+
+    if amount > balance:
+        if balance > 0:
+            Payment.objects.create(
+                membership=latest,
+                student=student,
+                date=payment_date,
+                amount=balance,
+                method=method,
+            )
+            latest.recalculate_status()
+        new_membership = _create_renewed_membership(latest)
+        payment = Payment.objects.create(
+            membership=new_membership,
+            student=student,
+            date=payment_date,
+            amount=amount - balance,
+            method=method,
+        )
+        Membership.sync_student_dates(student)
+        return payment, None
+
+    payment = Payment.objects.create(
+        membership=latest,
+        student=student,
+        date=payment_date,
+        amount=amount,
+        method=method,
+    )
+    return payment, None
 
 
 @login_required(login_url='login')
@@ -364,21 +504,7 @@ def membership_payment_receipt(request, membership_id, payment_id):
 
 @login_required(login_url='login')
 def membership_payment_add(request):
-    form = PaymentForm(request.POST or None, membership_qs=_membership_queryset())
-    if request.method == 'POST' and form.is_valid():
-        form.save()
-        return redirect('membership_payments_list')
-    payments_qs = Payment.objects.select_related('membership', 'student').order_by('-date')
-    page_obj, per_page = _paginate(payments_qs, request)
-    return render(request, 'core/memberships/payments_list.html', {
-        'page_obj': page_obj,
-        'per_page': per_page,
-        'memberships': _membership_queryset(),
-        'form': form,
-        'create_mode': True,
-        'is_secretary': _is_secretary(request.user),
-        **_payment_list_filter_defaults(),
-    })
+    return redirect('membership_payments_list')
 
 
 @login_required(login_url='login')
@@ -387,19 +513,28 @@ def membership_payments_list(request):
         'membership', 'membership__student', 'student', 'student__shift',
     ).order_by('-date')
     payments, filter_ctx = _apply_payment_list_filters(payments_qs, request)
-    memberships = _membership_queryset()
 
-    form = PaymentForm(
-        request.POST or None,
-        membership_qs=_membership_queryset(),
-    )
+    form = PaymentCreateForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
-        form.save()
-        url = _append_query_params(
-            reverse('membership_payments_list'),
-            _filter_query_params(request, _PAYMENT_FILTER_KEYS),
+        student = get_object_or_404(Student, pk=form.cleaned_data['student_id'], retired=False)
+        payment, error = _register_student_payment(
+            student,
+            form.cleaned_data['amount'],
+            form.cleaned_data['date'],
+            form.cleaned_data['method'],
+            confirm_new_membership=form.cleaned_data.get('confirm_new_membership') == '1',
         )
-        return redirect(url)
+        if error == 'confirm_new_membership':
+            form.add_error(
+                'amount',
+                'El monto supera la deuda actual. Confirme la creación de una nueva membresía.',
+            )
+        else:
+            url = _append_query_params(
+                reverse('membership_payments_list'),
+                _filter_query_params(request, _PAYMENT_FILTER_KEYS),
+            )
+            return redirect(url)
 
     page_obj, per_page = _paginate(payments, request)
     return render(request, 'core/memberships/payments_list.html', {
@@ -407,10 +542,9 @@ def membership_payments_list(request):
         'per_page': per_page,
         'page_sizes': PAGE_SIZES,
         'list_query': urlencode(_payment_list_query_params(request)),
-        'memberships': memberships,
         'form': form,
         'cycle_choices': active_cycle_choices(),
-        'create_mode': False,
+        'edit_mode': False,
         'is_secretary': _is_secretary(request.user),
         **filter_ctx,
     })
@@ -420,8 +554,8 @@ def membership_payments_list(request):
 def membership_payment_edit(request, payment_id):
     payment = get_object_or_404(Payment.objects.select_related('membership'), pk=payment_id)
     list_params = _filter_query_params(request, _PAYMENT_FILTER_KEYS)
-    if not list_params.get('membership') and payment.membership_id:
-        list_params['membership'] = str(payment.membership_id)
+    if not list_params.get('student') and payment.student_id:
+        list_params['student'] = str(payment.student_id)
     form = PaymentForm(
         request.POST or None,
         instance=payment,
@@ -442,7 +576,6 @@ def membership_payment_edit(request, payment_id):
         'per_page': per_page,
         'page_sizes': PAGE_SIZES,
         'list_query': urlencode(_payment_list_query_params(request)),
-        'memberships': _membership_queryset(),
         'form': form,
         'payment': payment,
         'edit_mode': True,
@@ -462,6 +595,12 @@ def membership_payment_delete_global(request, payment_id):
     if membership:
         membership.recalculate_status()
     return redirect('membership_payments_list')
+
+
+@login_required(login_url='login')
+def student_payment_status_api(request, student_id):
+    student = get_object_or_404(Student, pk=student_id, retired=False)
+    return JsonResponse(_student_payment_status(student))
 
 
 @login_required(login_url='login')

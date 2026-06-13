@@ -420,6 +420,57 @@ class CycleForm(forms.ModelForm):
         }
 
 
+class PaymentCreateForm(forms.ModelForm):
+    student_id = forms.IntegerField(widget=forms.HiddenInput(), required=False)
+    student_search = forms.CharField(
+        required=False,
+        label='Estudiante',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Buscar estudiante ...',
+            'autocomplete': 'off',
+            'id': 'payment-student-search',
+        }),
+    )
+    confirm_new_membership = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(attrs={'id': 'id_confirm_new_membership'}),
+        initial='',
+    )
+    date = forms.DateField(
+        widget=DateInput(
+            attrs={'type': 'date', 'class': 'form-control'},
+            format='%Y-%m-%d',
+        ),
+        input_formats=['%Y-%m-%d', '%d/%m/%Y'],
+        label='Fecha',
+    )
+
+    class Meta:
+        model = Payment
+        fields = ['date', 'amount', 'method']
+        widgets = {
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Monto'}),
+            'method': forms.Select(attrs={'class': 'form-control'}),
+        }
+        labels = {
+            'amount': 'Monto',
+            'method': 'Método',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            from django.utils import timezone
+            self.fields['date'].initial = timezone.localdate().isoformat()
+
+    def clean(self):
+        cleaned = super().clean()
+        if not cleaned.get('student_id'):
+            self.add_error('student_search', 'Seleccione un estudiante de la lista.')
+        return cleaned
+
+
 class PaymentForm(forms.ModelForm):
     date = forms.DateField(
         widget=DateInput(

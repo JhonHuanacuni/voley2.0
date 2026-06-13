@@ -27,6 +27,11 @@ urlpatterns = [
     path('memberships/', views_membership.membership_list, name='memberships_list'),
     path('memberships/add/', views_membership.membership_create, name='membership_add'),
     path('memberships/search/', views_membership.student_search_api, name='membership_student_search'),
+    path(
+        'memberships/students/<int:student_id>/payment-status/',
+        views_membership.student_payment_status_api,
+        name='student_payment_status',
+    ),
     path('memberships/<int:membership_id>/edit/', views_membership.membership_edit, name='membership_edit'),
     path('memberships/<int:membership_id>/delete/', views_membership.membership_delete, name='membership_delete'),
     path('memberships/<int:membership_id>/renew/', views_membership.membership_renew, name='membership_renew'),

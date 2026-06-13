@@ -5,140 +5,164 @@
     <a class="btn btn-secondary" href="{% url 'memberships_list' %}"><i class="fas fa-id-card"></i> Membresías</a>
 </div>
 
-<div class="row">
-    {% if create_mode or edit_mode %}
-    <div class="col-lg-5 mb-4">
-        <div class="card shadow">
-            <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">{% if edit_mode %}Editar pago{% else %}Nuevo pago{% endif %}</h6></div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    <div class="form-group">{{ form.membership.label_tag }} {{ form.membership }}</div>
-                    <div class="form-group">{{ form.date.label_tag }} {{ form.date }}</div>
-                    <div class="form-group">{{ form.amount.label_tag }} {{ form.amount }}</div>
-                    <div class="form-group">{{ form.method.label_tag }} {{ form.method }}</div>
-                    <button class="btn btn-primary" type="submit">Guardar</button>
-                    <a class="btn btn-secondary" href="{% url 'membership_payments_list' %}">Cancelar</a>
-                </form>
-            </div>
-        </div>
+{% if edit_mode %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Editar pago</h6>
     </div>
-    {% endif %}
-
-    <div class="col-lg-{% if create_mode or edit_mode %}7{% else %}12{% endif %} mb-4">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Filtro</h6></div>
-            <div class="card-body">
-                <form method="get" action="{% url 'membership_payments_list' %}" class="form-row align-items-end">
-                    <div class="form-group col-md-4 col-lg-3 mb-2">
-                        <label class="small text-muted mb-1">Membresía</label>
-                        <select name="membership" class="form-control">
-                            <option value="">Todas las membresías</option>
-                            {% for m in memberships %}
-                            <option value="{{ m.id }}" {% if selected_membership|default:'' == m.id|stringformat:'s' %}selected{% endif %}>
-                                {{ m.student.name }} ({{ m.start_date|date:"d/m/Y" }})
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group col-md-4 col-lg-2 mb-2">
-                        <label class="small text-muted mb-1">Categoría (ciclo)</label>
-                        <select name="cycle" class="form-control">
-                            <option value="">Todas</option>
-                            {% for value, label in cycle_choices %}
-                            <option value="{{ value }}" {% if cycle_filter == value %}selected{% endif %}>{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group col-md-4 col-lg-2 mb-2">
-                        <label class="small text-muted mb-1">Turno</label>
-                        <select name="shift" class="form-control">
-                            <option value="">Todos</option>
-                            {% for value, label in shift_choices %}
-                            <option value="{{ value }}" {% if shift_filter == value %}selected{% endif %}>{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group col-md-4 col-lg-2 mb-2">
-                        <label class="small text-muted mb-1">Pago desde</label>
-                        <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
-                    </div>
-                    <div class="form-group col-md-4 col-lg-2 mb-2">
-                        <label class="small text-muted mb-1">Pago hasta</label>
-                        <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
-                    </div>
-                    <div class="form-group col-md-4 col-lg-2 mb-2">
-                        <label class="small text-muted mb-1">Por página</label>
-                        <select name="per_page" class="form-control">
-                            {% for size in page_sizes %}
-                            <option value="{{ size }}" {% if per_page == size %}selected{% endif %}>{{ size }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group col-md-4 col-lg-1 mb-2">
-                        <label class="small text-muted mb-1">&nbsp;</label>
-                        <button class="btn btn-secondary btn-block" type="submit">Filtrar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <div class="card shadow">
-            <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary">Historial de pagos</h6>
-                {% if not edit_mode %}
-                <a class="btn btn-sm btn-primary" href="{% url 'membership_payment_add' %}">Registrar pago</a>
-                {% endif %}
-            </div>
-            <div class="card-body">
-                <table class="table table-bordered">
-                    <thead>
-                        <tr><th>Alumna</th><th>Categoría</th><th>Turno</th><th>Membresía</th><th>Fecha</th><th>Monto</th><th>Método</th><th>Acciones</th></tr>
-                    </thead>
-                    <tbody>
-                        {% for payment in page_obj %}
-                        <tr>
-                            <td>{{ payment.student.name }}</td>
-                            <td>{{ payment.student.get_cycle_display|default:"—" }}</td>
-                            <td>{{ payment.student.get_shift_display|default:"—" }}</td>
-                            <td>
-                                {% if payment.membership %}
-                                {{ payment.membership.start_date|date:"d/m/Y" }} — {{ payment.membership.end_date|date:"d/m/Y" }}
-                                {% else %}—{% endif %}
-                            </td>
-                            <td>{{ payment.date|date:"d/m/Y" }}</td>
-                            <td>S/ {{ payment.amount }}</td>
-                            <td>{{ payment.get_method_display }}</td>
-                            <td>
-                                {% if payment.membership %}
-                                <a class="btn btn-sm btn-success" href="{% url 'membership_payment_receipt' payment.membership.id payment.id %}" target="_blank">Recibo</a>
-                                {% endif %}
-                                {% if payment.student.whatsapp_url and payment.membership %}
-                                <button type="button" class="btn btn-sm btn-success send-receipt" data-receipt-url="{% url 'membership_payment_receipt' payment.membership.id payment.id %}" data-whatsapp-url="{{ payment.student.whatsapp_url }}" data-student-name="{{ payment.student.name }}">
-                                    Enviar
-                                </button>
-                                {% elif payment.membership %}
-                                <button type="button" class="btn btn-sm btn-secondary" disabled title="No hay WhatsApp del apoderado">Enviar</button>
-                                {% endif %}
-                                <a class="btn btn-sm btn-info" href="{% url 'membership_payment_edit' payment.id %}">Editar</a>
-                                {% if not is_secretary %}
-                                <form method="post" action="{% url 'membership_payment_delete_global' payment.id %}" class="d-inline" onsubmit="return confirm('¿Eliminar pago?');">
-                                    {% csrf_token %}
-                                    <button class="btn btn-sm btn-danger" type="submit">Eliminar</button>
-                                </form>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="8">No hay pagos.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% include 'core/_pagination.html' with item_label='pago' %}
-            </div>
-        </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">{{ form.membership.label_tag }} {{ form.membership }}</div>
+            <div class="form-group">{{ form.date.label_tag }} {{ form.date }}</div>
+            <div class="form-group">{{ form.amount.label_tag }} {{ form.amount }}</div>
+            <div class="form-group">{{ form.method.label_tag }} {{ form.method }}</div>
+            <button class="btn btn-primary" type="submit">Guardar</button>
+            <a class="btn btn-secondary" href="{% url 'membership_payments_list' %}">Cancelar</a>
+        </form>
     </div>
 </div>
+{% else %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Nuevo pago</h6>
+    </div>
+    <div class="card-body">
+        <form method="post" id="payment-create-form">
+            {% csrf_token %}
+            <div class="form-group mb-3 position-relative">
+                {{ form.student_id }}
+                {{ form.confirm_new_membership }}
+                {{ form.student_search.label_tag }}
+                {{ form.student_search }}
+                <div id="payment-student-search-results" class="list-group position-absolute w-100 shadow d-none" style="z-index: 1000; max-height: 220px; overflow-y: auto;"></div>
+                {% if form.student_search.errors %}<div class="text-danger small">{{ form.student_search.errors }}</div>{% endif %}
+            </div>
+            <div id="payment-student-status" class="alert d-none mb-3" role="alert"></div>
+            <div class="form-row">
+                <div class="form-group col-md-4">{{ form.date.label_tag }} {{ form.date }}</div>
+                <div class="form-group col-md-4">{{ form.amount.label_tag }} {{ form.amount }}{% if form.amount.errors %}<div class="text-danger small">{{ form.amount.errors }}</div>{% endif %}</div>
+                <div class="form-group col-md-4">{{ form.method.label_tag }} {{ form.method }}</div>
+            </div>
+            <button class="btn btn-primary" type="submit">Guardar</button>
+            <a class="btn btn-secondary" href="{% url 'membership_payments_list' %}">Cancelar</a>
+        </form>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% include 'core/memberships/_payment_student_search_script.html' %}
+{% endif %}
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <form method="get" action="{% url 'membership_payments_list' %}" class="form-row align-items-end">
+            <div class="form-group col-md-4 col-lg-3 mb-2 position-relative">
+                <label class="small text-muted mb-1">Alumna</label>
+                <input type="hidden" name="student" id="filter-student-id" value="{{ selected_student }}">
+                <input type="search" id="filter-student-search" class="form-control" placeholder="Buscar alumna ..." autocomplete="off" value="{{ selected_student_label }}">
+                <div id="filter-student-search-results" class="list-group position-absolute w-100 shadow d-none" style="z-index: 1000; max-height: 220px; overflow-y: auto;"></div>
+            </div>
+            <div class="form-group col-md-4 col-lg-2 mb-2">
+                <label class="small text-muted mb-1">Categoría (ciclo)</label>
+                <select name="cycle" class="form-control">
+                    <option value="">Todas</option>
+                    {% for value, label in cycle_choices %}
+                    <option value="{{ value }}" {% if cycle_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group col-md-4 col-lg-2 mb-2">
+                <label class="small text-muted mb-1">Turno</label>
+                <select name="shift" class="form-control">
+                    <option value="">Todos</option>
+                    {% for value, label in shift_choices %}
+                    <option value="{{ value }}" {% if shift_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group col-md-4 col-lg-2 mb-2">
+                <label class="small text-muted mb-1">Pago desde</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="form-group col-md-4 col-lg-2 mb-2">
+                <label class="small text-muted mb-1">Pago hasta</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            <div class="form-group col-md-4 col-lg-2 mb-2">
+                <label class="small text-muted mb-1">Por página</label>
+                <select name="per_page" class="form-control">
+                    {% for size in page_sizes %}
+                    <option value="{{ size }}" {% if per_page == size %}selected{% endif %}>{{ size }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group col-md-4 col-lg-1 mb-2">
+                <label class="small text-muted mb-1">&nbsp;</label>
+                <button class="btn btn-secondary btn-block" type="submit">Filtrar</button>
+            </div>
+        </form>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Alumna</th>
+                        <th>Categoría</th>
+                        <th>Turno</th>
+                        <th>Membresía</th>
+                        <th>Fecha</th>
+                        <th>Monto</th>
+                        <th>Método</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in page_obj %}
+                    <tr>
+                        <td>{{ payment.student.name }}</td>
+                        <td>{{ payment.student.get_cycle_display|default:"—" }}</td>
+                        <td>{{ payment.student.get_shift_display|default:"—" }}</td>
+                        <td>
+                            {% if payment.membership %}
+                            {{ payment.membership.start_date|date:"d/m/Y" }} — {{ payment.membership.end_date|date:"d/m/Y" }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>{{ payment.date|date:"d/m/Y" }}</td>
+                        <td>S/ {{ payment.amount }}</td>
+                        <td>{{ payment.get_method_display }}</td>
+                        <td class="text-nowrap">
+                            {% if payment.membership %}
+                            <a class="btn btn-sm btn-success" href="{% url 'membership_payment_receipt' payment.membership.id payment.id %}" target="_blank">Recibo</a>
+                            {% endif %}
+                            {% if payment.student.whatsapp_url and payment.membership %}
+                            <button type="button" class="btn btn-sm btn-success send-receipt" data-receipt-url="{% url 'membership_payment_receipt' payment.membership.id payment.id %}" data-whatsapp-url="{{ payment.student.whatsapp_url }}" data-student-name="{{ payment.student.name }}">
+                                Enviar
+                            </button>
+                            {% elif payment.membership %}
+                            <button type="button" class="btn btn-sm btn-secondary" disabled title="No hay WhatsApp del apoderado">Enviar</button>
+                            {% endif %}
+                            <a class="btn btn-sm btn-info" href="{% url 'membership_payment_edit' payment.id %}">Editar</a>
+                            {% if not is_secretary %}
+                            <form method="post" action="{% url 'membership_payment_delete_global' payment.id %}" class="d-inline" onsubmit="return confirm('¿Eliminar pago?');">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-danger" type="submit">Eliminar</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8">No hay pagos.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'core/_pagination.html' with item_label='pago' %}
+    </div>
+</div>
+
+{% include 'core/memberships/_filter_student_search_script.html' %}
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.send-receipt').forEach(function (button) {

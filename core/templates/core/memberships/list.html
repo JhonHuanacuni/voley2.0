@@ -89,7 +89,7 @@
                         </td>
                         <td class="text-nowrap">
                             <a class="btn btn-sm btn-info" href="{% url 'membership_edit' m.id %}">Editar</a>
-                            <a class="btn btn-sm btn-primary" href="{% url 'membership_renew' m.id %}">Renovar</a>
+                            <a class="btn btn-sm btn-primary d-none" href="{% url 'membership_renew' m.id %}">Renovar</a>
                             <a class="btn btn-sm btn-success" href="{% url 'membership_payments' m.id %}">Ver pagos</a>
                             {% if not is_secretary %}
                             <form method="post" action="{% url 'membership_delete' m.id %}" class="d-inline" onsubmit="return confirm('¿Eliminar esta membresía y sus pagos?');">
