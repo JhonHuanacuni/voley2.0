@@ -6,7 +6,7 @@ from urllib.parse import quote, urlencode
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Q, Sum
+from django.db.models import OuterRef, Q, Subquery, Sum
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -276,11 +276,18 @@ def _student_per_page(request):
     return size if size in STUDENT_PAGE_SIZES else 10
 
 
+def _valid_debt_filter(value):
+    if value in ('debt', 'current'):
+        return value
+    return ''
+
+
 def _students_list_query_params(request, page=None, per_page=None):
     params = {}
     query = request.GET.get('q', '').strip()
     cycle_filter = valid_cycle_id(request.GET.get('cycle', ''))
     shift_filter = _valid_shift_filter(request.GET.get('shift', ''))
+    debt_filter = _valid_debt_filter(request.GET.get('debt_status', ''))
     size = per_page if per_page is not None else _student_per_page(request)
 
     if query:
@@ -289,6 +296,8 @@ def _students_list_query_params(request, page=None, per_page=None):
         params['cycle'] = cycle_filter
     if shift_filter:
         params['shift'] = shift_filter
+    if debt_filter:
+        params['debt_status'] = debt_filter
     if size != 10:
         params['per_page'] = str(size)
     if page:
@@ -301,7 +310,10 @@ def student_list(request):
     query = request.GET.get('q', '').strip()
     cycle_filter = valid_cycle_id(request.GET.get('cycle', ''))
     shift_filter = _valid_shift_filter(request.GET.get('shift', ''))
-    students = Student.objects.filter(retired=False).select_related('cycle', 'shift').prefetch_related('memberships')
+    debt_filter = _valid_debt_filter(request.GET.get('debt_status', ''))
+    students = Student.objects.filter(retired=False).select_related('cycle', 'shift').prefetch_related(
+        'memberships__payments',
+    )
     if query:
         students = students.filter(
             Q(name__icontains=query)
@@ -313,6 +325,15 @@ def student_list(request):
         students = students.filter(cycle_id=int(cycle_filter))
     if shift_filter:
         students = students.filter(shift_id=int(shift_filter))
+    if debt_filter:
+        latest_status = Membership.objects.filter(
+            student=OuterRef('pk'),
+        ).order_by('-end_date', '-created_at').values('status')[:1]
+        students = students.annotate(_latest_membership_status=Subquery(latest_status))
+        if debt_filter == 'debt':
+            students = students.filter(_latest_membership_status='debt')
+        else:
+            students = students.filter(_latest_membership_status='completed')
     students = students.order_by('name')
 
     per_page = _student_per_page(request)
@@ -336,6 +357,7 @@ def student_list(request):
         'cycle_choices': active_cycle_choices(),
         'shift_filter': shift_filter,
         'shift_choices': _shift_choices(),
+        'debt_filter': debt_filter,
         'form': form,
         'create_mode': True,
     }

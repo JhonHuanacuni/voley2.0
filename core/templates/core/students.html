@@ -29,15 +29,23 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="form-group col-md-6 col-lg-2 mb-2">
-                <label class="small text-muted mb-1">Por página</label>
+            <div class="form-group col-md-4 col-lg-2 mb-2">
+                <label class="small text-muted mb-1">Estado pago</label>
+                <select name="debt_status" class="form-control">
+                    <option value="">Todos</option>
+                    <option value="current" {% if debt_filter == 'current' %}selected{% endif %}>Al día</option>
+                    <option value="debt" {% if debt_filter == 'debt' %}selected{% endif %}>Deuda</option>
+                </select>
+            </div>
+            <div class="form-group col-md-4 col-lg-1 mb-2">
+                <label class="small text-muted mb-1">Por pág.</label>
                 <select name="per_page" class="form-control">
                     {% for size in page_sizes %}
                     <option value="{{ size }}" {% if per_page == size %}selected{% endif %}>{{ size }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="form-group col-md-6 col-lg-2 mb-2">
+            <div class="form-group col-md-4 col-lg-1 mb-2">
                 <label class="small text-muted mb-1">&nbsp;</label>
                 <button class="btn btn-secondary btn-block" type="submit">Filtrar</button>
             </div>
@@ -49,11 +57,10 @@
                 <thead>
                     <tr>
                         <th>Nombre</th>
-                        <th>Ciclo</th>
                         <th>Teléfono</th>
                         <th>Turno</th>
-                        <th>Condición</th>
                         <th>Matrícula</th>
+                        <th>Estado</th>
                         <th>Días para venc.</th>
                         <th>Acciones</th>
                     </tr>
@@ -62,11 +69,14 @@
                     {% for student in page_obj %}
                     <tr>
                         <td>{{ student.name }}</td>
-                        <td>{{ student.get_cycle_display|default:"—" }}</td>
                         <td>{{ student.contact|default:"—" }}</td>
                         <td>{{ student.get_shift_display|default:"—" }}</td>
-                        <td>{{ student.get_student_condition_display }}</td>
                         <td>{% if student.enrollment_status == 'active' %}Activa{% else %}Inactiva{% endif %}</td>
+                        <td>
+                            {% with debt=student.membership_debt_info %}
+                            <span class="badge badge-{{ debt.color }} px-2 py-2"{% if debt.balance %} title="Debe S/ {{ debt.balance|floatformat:2 }}"{% endif %}>{{ debt.label }}</span>
+                            {% endwith %}
+                        </td>
                         <td>
                             {% with info=student.membership_expiry_info %}
                             <span class="badge badge-{{ info.color }} px-2 py-2">{{ info.label }}</span>
@@ -86,7 +96,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="8">No se encontraron alumnas.</td></tr>
+                    <tr><td colspan="7">No se encontraron alumnas.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

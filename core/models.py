@@ -300,6 +300,16 @@ class Student(models.Model):
         return {'days': days_left, 'label': label, 'color': color}
 
     @property
+    def membership_debt_info(self):
+        membership = self.memberships.order_by('-end_date', '-created_at').first()
+        if not membership:
+            return {'has_debt': False, 'label': 'Sin membresía', 'color': 'secondary'}
+        balance = float(membership.balance)
+        if balance <= 0:
+            return {'has_debt': False, 'label': 'Al día', 'color': 'success'}
+        return {'has_debt': True, 'label': 'Deuda', 'color': 'warning', 'balance': balance}
+
+    @property
     def membership_days_remaining(self):
         info = self.membership_expiry_info
         return info['days']
