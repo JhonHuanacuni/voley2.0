@@ -551,7 +551,7 @@ class SaleForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del producto/servicio'}),
             'size': forms.Select(attrs={'class': 'form-control'}),
             'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
-            'observation': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Observación'}),
+            'observation': forms.Textarea(attrs={'class': 'form-control', 'rows': 1, 'placeholder': 'Observación'}),
         }
         labels = {
             'name': 'Nombre',

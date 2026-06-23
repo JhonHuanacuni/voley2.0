@@ -98,7 +98,7 @@
         <div class="card shadow h-100">
             <div class="card-body">
                 <h5 class="card-title">Pagos</h5>
-                <p class="card-text">Descarga el historial de pagos.</p>
+                <p class="card-text">Descarga el historial de pagos de membresías y ventas.</p>
                 <a class="btn btn-primary" href="{% url 'export_payments_xlsx' %}{% if selected_student %}?student={{ selected_student }}{% endif %}">Exportar Excel</a>
             </div>
         </div>

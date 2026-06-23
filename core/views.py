@@ -1115,28 +1115,63 @@ def export_payments_xlsx(request):
     if get_user_role(request.user) == 'secretary':
         return redirect('reports')
     student_id = request.GET.get('student')
-    payments = Payment.objects.select_related('membership', 'student').order_by('-date')
+    payments = Payment.objects.select_related('membership', 'student')
+    sales = Sale.objects.select_related('shift')
+
     if student_id:
         payments = payments.filter(student_id=student_id)
+        student = Student.objects.filter(pk=student_id).first()
+        if student:
+            sales = sales.filter(name__iexact=student.name)
+        else:
+            sales = sales.none()
+
     rows = []
     for payment in payments:
         period = ''
         if payment.membership:
             period = f'{payment.membership.start_date} — {payment.membership.end_date}'
-        rows.append([
-            payment.student.name,
-            period,
-            payment.date,
-            float(payment.amount),
-            payment.get_method_display(),
-            payment.membership.get_status_display() if payment.membership else '',
-        ])
+        rows.append({
+            'date': payment.date,
+            'row': [
+                'Membresía',
+                payment.student.name,
+                period,
+                payment.date,
+                float(payment.amount),
+                payment.get_method_display(),
+                payment.membership.get_status_display() if payment.membership else '',
+            ],
+        })
+
+    for sale in sales:
+        detail_parts = [str(sale.shift)]
+        if sale.size:
+            detail_parts.append(f'Talla {sale.size}')
+        if sale.observation:
+            detail_parts.append(sale.observation)
+        rows.append({
+            'date': sale.sale_date,
+            'row': [
+                'Venta',
+                sale.name,
+                ' · '.join(detail_parts),
+                sale.sale_date,
+                float(sale.price),
+                '—',
+                '—',
+            ],
+        })
+
+    rows.sort(key=lambda item: item['date'], reverse=True)
+    data_rows = [item['row'] for item in rows]
+
     wb = _write_professional_workbook(
-        rows,
-        ['Alumna', 'Periodo membresía', 'Fecha pago', 'Monto', 'Método', 'Estado membresía'],
+        data_rows,
+        ['Tipo', 'Alumna', 'Periodo membresía', 'Fecha pago', 'Monto', 'Método', 'Estado membresía'],
         title='Historial de Pagos',
-        subtitle='Historial de Transacciones y Pagos',
-        money_cols=(3,),
+        subtitle='Historial de pagos de membresías y ventas',
+        money_cols=(4,),
     )
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename=vita_voley_pagos.xlsx'
