@@ -10,7 +10,6 @@ from django.db.models import Sum
 from .forms import SaleForm
 from .models import Sale
 from .receipt_pdf import fill_sale_receipt
-from .views import _ensure_admin
 
 PAGE_SIZES = (10, 20, 50)
 
@@ -44,10 +43,6 @@ def _paginate(qs, request):
 
 @login_required(login_url='login')
 def sales_list(request):
-    admin_redirect = _ensure_admin(request)
-    if admin_redirect:
-        return admin_redirect
-
     sale_to_edit = None
     edit_id = request.GET.get('edit') or request.POST.get('edit_id')
 
@@ -82,10 +77,6 @@ def sales_list(request):
 
 @login_required(login_url='login')
 def sale_delete(request, sale_id):
-    admin_redirect = _ensure_admin(request)
-    if admin_redirect:
-        return admin_redirect
-
     sale = get_object_or_404(Sale, pk=sale_id)
     if request.method == 'POST':
         sale.delete()
@@ -94,10 +85,6 @@ def sale_delete(request, sale_id):
 
 @login_required(login_url='login')
 def sale_receipt(request, sale_id):
-    admin_redirect = _ensure_admin(request)
-    if admin_redirect:
-        return admin_redirect
-
     sale = get_object_or_404(Sale.objects.select_related('shift'), pk=sale_id)
     buffer = fill_sale_receipt(sale)
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
