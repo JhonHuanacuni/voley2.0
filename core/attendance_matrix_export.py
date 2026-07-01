@@ -147,6 +147,8 @@ def build_attendance_matrix_workbook(
         'N°',
         'NOMBRES Y APELLIDOS',
         'APODERADO',
+        'TEL. APODERADO',
+        'TEL. ESTUDIANTE',
         'TURNO',
         'HORARIO',
         'ESTADO',
@@ -197,6 +199,8 @@ def build_attendance_matrix_workbook(
             row_idx - 1,
             student.name.upper(),
             (student.guardian or '').upper(),
+            student.guardian_phone or '',
+            student.contact or '',
             (shift.name if shift else ''),
             (shift.schedule if shift else 'VOLEY VITA'),
             _enrollment_label(student),
@@ -263,12 +267,18 @@ def build_attendance_matrix_workbook(
             elif col_idx in (total_asist_col, total_tard_col, total_faltas_col):
                 cell.alignment = Alignment(horizontal='center', vertical='center')
 
-    ws.column_dimensions['A'].width = 5
-    ws.column_dimensions['B'].width = 36
-    ws.column_dimensions['C'].width = 14
-    ws.column_dimensions['D'].width = 12
-    ws.column_dimensions['E'].width = 16
-    ws.column_dimensions['F'].width = 10
+    fixed_col_widths = {
+        1: 5,
+        2: 36,
+        3: 14,
+        4: 14,
+        5: 14,
+        6: 12,
+        7: 16,
+        8: 10,
+    }
+    for col_idx, width in fixed_col_widths.items():
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
     if include_membership_payment and membership_col:
         ws.column_dimensions[get_column_letter(membership_col)].width = MEMBERSHIP_COL_WIDTH
     for col_idx in range(first_day_col, last_day_col + 1):
