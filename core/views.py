@@ -149,14 +149,15 @@ def dashboard_view(request):
     # calcular cumpleaños hoy
     from datetime import date as _date
     today_dt = _date.today()
-    birthdays_today = 0
-    for s in active_students:
-        if s.birth_date:
-            try:
-                if s.birth_date.month == today_dt.month and s.birth_date.day == today_dt.day:
-                    birthdays_today += 1
-            except Exception:
-                pass
+    birthdays_today_students = (
+        active_students.filter(
+            birth_date__month=today_dt.month,
+            birth_date__day=today_dt.day,
+        )
+        .select_related('shift')
+        .order_by('name')
+    )
+    birthdays_today = birthdays_today_students.count()
     user_role = get_user_role(request.user)
     is_secretary = user_role == 'secretary'
     sales_month_total = 0
@@ -220,6 +221,7 @@ def dashboard_view(request):
         'active_count': active_students.filter(enrollment_status='active').count(),
         'inactive_enrollment': inactive_enrollment,
         'birthdays_today': birthdays_today,
+        'birthdays_today_students': birthdays_today_students,
         'retired_count': students.filter(retired=True).count(),
         'attendance_month_present': attended_this_month.filter(status='present').count(),
         'attendance_month_absent': attended_this_month.filter(status='absent').count(),
