@@ -1160,7 +1160,7 @@ def export_payments_xlsx(request):
                 ' · '.join(detail_parts),
                 sale.sale_date,
                 float(sale.price),
-                '—',
+                sale.get_payment_method_display(),
                 '—',
             ],
         })

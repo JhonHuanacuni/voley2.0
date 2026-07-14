@@ -546,17 +546,19 @@ class SaleForm(forms.ModelForm):
 
     class Meta:
         model = Sale
-        fields = ['name', 'shift', 'size', 'price', 'observation']
+        fields = ['name', 'shift', 'size', 'price', 'payment_method', 'observation']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del producto/servicio'}),
             'size': forms.Select(attrs={'class': 'form-control'}),
             'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'payment_method': forms.Select(attrs={'class': 'form-control'}),
             'observation': forms.Textarea(attrs={'class': 'form-control', 'rows': 1, 'placeholder': 'Observación'}),
         }
         labels = {
             'name': 'Nombre',
             'size': 'Talla',
             'price': 'Precio',
+            'payment_method': 'Método de pago',
             'observation': 'Observación',
         }
 

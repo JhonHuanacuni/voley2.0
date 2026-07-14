@@ -27,16 +27,22 @@
                     {% if form.shift.errors %}<div class="text-danger small">{{ form.shift.errors }}</div>{% endif %}
                 </div>
 
-                <div class="form-group col-md-6 col-lg-3 mb-3">
+                <div class="form-group col-md-6 col-lg-2 mb-3">
                     {{ form.size.label_tag }}
                     {{ form.size }}
                     {% if form.size.errors %}<div class="text-danger small">{{ form.size.errors }}</div>{% endif %}
                 </div>
 
-                <div class="form-group col-md-6 col-lg-3 mb-3">
+                <div class="form-group col-md-6 col-lg-2 mb-3">
                     {{ form.price.label_tag }}
                     {{ form.price }}
                     {% if form.price.errors %}<div class="text-danger small">{{ form.price.errors }}</div>{% endif %}
+                </div>
+
+                <div class="form-group col-md-6 col-lg-2 mb-3">
+                    {{ form.payment_method.label_tag }}
+                    {{ form.payment_method }}
+                    {% if form.payment_method.errors %}<div class="text-danger small">{{ form.payment_method.errors }}</div>{% endif %}
                 </div>
 
                 <div class="form-group col-12 mb-3">
@@ -75,6 +81,7 @@
                         <th>Turno</th>
                         <th>Talla</th>
                         <th>Precio</th>
+                        <th>Método de pago</th>
                         <th>Observación</th>
                         <th>Acciones</th>
                     </tr>
@@ -86,6 +93,7 @@
                         <td>{{ item.shift }}</td>
                         <td>{{ item.size|default:"—" }}</td>
                         <td>S/ {{ item.price|floatformat:2 }}</td>
+                        <td>{{ item.get_payment_method_display }}</td>
                         <td>{{ item.observation|default:"—" }}</td>
                         <td class="text-nowrap">
                             <a class="btn btn-sm btn-success" href="{% url 'sale_receipt' item.id %}" target="_blank">Recibo</a>
@@ -103,7 +111,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6">No hay ventas registradas.</td></tr>
+                    <tr><td colspan="7">No hay ventas registradas.</td></tr>
                     {% endfor %}
                 </tbody>
                 {% if sales_total %}
@@ -111,7 +119,7 @@
                     <tr class="font-weight-bold bg-light">
                         <td colspan="3" class="text-right">TOTAL</td>
                         <td>S/ {{ sales_total|floatformat:2 }}</td>
-                        <td colspan="2"></td>
+                        <td colspan="3"></td>
                     </tr>
                 </tfoot>
                 {% endif %}

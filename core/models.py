@@ -459,6 +459,12 @@ class Sale(models.Model):
     )
     observation = models.TextField(blank=True, null=True, verbose_name='Observación')
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Precio (S/.)')
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default='efectivo',
+        verbose_name='Método de pago',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

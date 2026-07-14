@@ -63,9 +63,9 @@ class ExpenseAdmin(admin.ModelAdmin):
 
 @admin.register(Sale)
 class SaleAdmin(admin.ModelAdmin):
-    list_display = ('name', 'shift', 'size', 'price', 'created_at')
+    list_display = ('name', 'shift', 'size', 'price', 'payment_method', 'created_at')
     search_fields = ('name', 'observation')
-    list_filter = ('shift', 'size', 'created_at')
+    list_filter = ('shift', 'size', 'payment_method', 'created_at')
 
 
 @admin.register(UserProfile)
