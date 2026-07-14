@@ -185,7 +185,7 @@ En este repositorio la base de datos **sí se versiona en Git**. El flujo acorda
 cd ~/voley2.0
 workon venv
 
-# Si git se queja por db.sqlite3 (cambios locales en PA):
+# Descartar cambios locales de la BD en PA y usar la versión de Git:
 git restore db.sqlite3
 
 git pull
@@ -193,6 +193,8 @@ python manage.py migrate
 ```
 
 Luego en PythonAnywhere: pestaña **Web** → botón verde **Reload**.
+
+> **Importante:** en PythonAnywhere la app modifica `db.sqlite3` al usarse. Si haces `git pull` y ves el error de abajo, **no hace falta commit**: descarta la BD local y fuerza la de Git (pasos siguientes).
 
 ---
 
@@ -211,7 +213,7 @@ git push origin main
 ```bash
 cd ~/voley2.0
 workon venv
-git restore db.sqlite3    # solo si git pull falla por db.sqlite3
+git restore db.sqlite3
 git pull
 python manage.py migrate
 # Web → Reload
@@ -223,17 +225,39 @@ python manage.py migrate
 2. Reemplazar el archivo local `db.sqlite3`
 3. Commit y push si quieres que producción y repo queden alineados
 
-### Error común: `db.sqlite3 would be overwritten by merge`
+### Error: `Your local changes to the following files would be overwritten by merge: db.sqlite3`
 
-Significa que hay cambios locales en PA que Git no puede mezclar. Solución:
+Ocurre cuando en PythonAnywhere hay cambios locales en `db.sqlite3` (por uso real de la app) y Git no puede sobrescribirlos al hacer `git pull`.
+
+**Solución (forzar la versión de Git / remoto):**
 
 ```bash
+cd ~/voley2.0
+workon venv
+
+# 1) Descartar la BD local de PA (se pierde lo que solo exista en ese servidor)
 git restore db.sqlite3
+
+# 2) Traer el código y la BD del repositorio
 git pull
+
+# 3) Aplicar migraciones nuevas (si las hay)
 python manage.py migrate
 ```
 
-Como la BD del repo viene de producción (descargada antes del commit), no hace falta respaldo extra.
+Luego: pestaña **Web** → **Reload**.
+
+Si quieres forzar **todo** el proyecto al estado de `main` en GitHub (descarta cualquier cambio local):
+
+```bash
+cd ~/voley2.0
+git fetch origin
+git reset --hard origin/main
+workon venv
+python manage.py migrate
+```
+
+Como la BD del repo suele venir de producción (descargada y subida desde local), normalmente no hace falta un respaldo extra. Si tienes dudas, descarga `db.sqlite3` desde PA antes del `restore` / `reset`.
 
 ---
 
