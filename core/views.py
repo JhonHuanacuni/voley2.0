@@ -3,6 +3,7 @@ from datetime import date
 from io import BytesIO
 from urllib.parse import quote, urlencode
 
+from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -22,6 +23,7 @@ from django.utils import timezone
 
 from .forms import PaymentForm, ShiftForm, StudentForm
 from .models import Attendance, Expense, Membership, Payment, Sale, Shift, Student, active_cycle_choices, valid_cycle_id
+from .payment_permissions import mark_payment_receipt_issued, payment_can_edit
 from .receipt_pdf import fill_payment_receipt
 from .time_utils import local_datetime_from
 from .attendance_matrix_export import build_attendance_matrix_workbook
@@ -739,6 +741,12 @@ def payment_create(request):
 @login_required(login_url='login')
 def payment_edit(request, payment_id):
     payment = get_object_or_404(Payment, pk=payment_id)
+    if get_user_role(request.user) == 'secretary' and not payment_can_edit(request.user, payment):
+        messages.warning(
+            request,
+            'Este pago ya tiene recibo emitido. Solo un administrador puede editarlo.',
+        )
+        return redirect('membership_payments_list')
     form = PaymentForm(request.POST or None, instance=payment)
     student_filter = request.GET.get('student', '') or str(payment.student_id)
     if request.method == 'POST' and form.is_valid():
@@ -805,6 +813,7 @@ def payment_delete_redirect(request, payment_id):
 @login_required(login_url='login')
 def payment_receipt(request, payment_id):
     payment = get_object_or_404(Payment, pk=payment_id)
+    mark_payment_receipt_issued(payment, request.user)
     student = payment.student
 
     months_es = {

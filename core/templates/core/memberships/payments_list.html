@@ -1,4 +1,5 @@
 {% extends 'core/base.html' %}
+{% load payment_tags %}
 {% block content %}
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Pagos</h1>
@@ -142,7 +143,11 @@
                             {% elif payment.membership %}
                             <button type="button" class="btn btn-sm btn-secondary" disabled title="No hay WhatsApp del apoderado">Enviar</button>
                             {% endif %}
+                            {% if payment|payment_editable:request.user %}
                             <a class="btn btn-sm btn-info" href="{% url 'membership_payment_edit' payment.id %}">Editar</a>
+                            {% else %}
+                            <button type="button" class="btn btn-sm btn-secondary" disabled title="Recibo emitido. Solo un administrador puede editar.">Editar</button>
+                            {% endif %}
                             {% if not is_secretary %}
                             <form method="post" action="{% url 'membership_payment_delete_global' payment.id %}" class="d-inline" onsubmit="return confirm('¿Eliminar pago?');">
                                 {% csrf_token %}

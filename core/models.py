@@ -491,9 +491,26 @@ class Payment(AuditableModel, models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='efectivo')
     created_at = models.DateTimeField(default=timezone.now, verbose_name='Creado el')
+    receipt_issued_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Recibo emitido el',
+    )
+    receipt_issued_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='payments_receipt_issued',
+        verbose_name='Recibo emitido por',
+    )
 
     class Meta:
         ordering = ['-date']
+
+    @property
+    def receipt_issued(self):
+        return self.receipt_issued_at is not None
 
     def save(self, *args, **kwargs):
         if self.membership_id:

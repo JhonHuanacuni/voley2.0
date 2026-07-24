@@ -3,6 +3,7 @@ from datetime import date, timedelta
 
 from urllib.parse import urlencode
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
@@ -13,6 +14,7 @@ from django.utils import timezone
 
 from .forms import MembershipForm, MembershipRenewForm, PaymentCreateForm, PaymentForm
 from .models import Membership, Payment, Shift, Student, active_cycle_choices, valid_cycle_id
+from .payment_permissions import mark_payment_receipt_issued, payment_can_edit
 from .receipt_pdf import fill_payment_receipt
 from .views import get_user_role
 
@@ -494,6 +496,7 @@ def membership_payment_delete(request, membership_id, payment_id):
 @login_required(login_url='login')
 def membership_payment_receipt(request, membership_id, payment_id):
     payment = get_object_or_404(Payment, pk=payment_id, membership_id=membership_id)
+    mark_payment_receipt_issued(payment, request.user)
     student = payment.student
     month_name = MONTHS_ES.get(payment.date.month, 'Desconocido')
     buffer = fill_payment_receipt(payment, student, month_name)
@@ -556,6 +559,14 @@ def membership_payment_edit(request, payment_id):
     list_params = _filter_query_params(request, _PAYMENT_FILTER_KEYS)
     if not list_params.get('student') and payment.student_id:
         list_params['student'] = str(payment.student_id)
+
+    if _is_secretary(request.user) and not payment_can_edit(request.user, payment):
+        messages.warning(
+            request,
+            'Este pago ya tiene recibo emitido. Solo un administrador puede editarlo.',
+        )
+        return redirect(_append_query_params(reverse('membership_payments_list'), list_params))
+
     form = PaymentForm(
         request.POST or None,
         instance=payment,
