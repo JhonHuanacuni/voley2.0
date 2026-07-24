@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.signals import post_save
@@ -5,7 +6,68 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 
-class Shift(models.Model):
+class AuditableModel(models.Model):
+    """Campos de trazabilidad: quién creó/actualizó y cuándo."""
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='%(app_label)s_%(class)s_created',
+        verbose_name='Creado por',
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='%(app_label)s_%(class)s_updated',
+        verbose_name='Actualizado por',
+    )
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Actualizado el')
+
+    class Meta:
+        abstract = True
+
+
+class AuditLog(models.Model):
+    ACTION_CREATE = 'create'
+    ACTION_UPDATE = 'update'
+    ACTION_DELETE = 'delete'
+    ACTION_CHOICES = [
+        (ACTION_CREATE, 'Creación'),
+        (ACTION_UPDATE, 'Actualización'),
+        (ACTION_DELETE, 'Eliminación'),
+    ]
+
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES, verbose_name='Acción')
+    model_name = models.CharField(max_length=100, verbose_name='Modelo', db_index=True)
+    object_id = models.CharField(max_length=50, verbose_name='ID objeto', db_index=True)
+    object_repr = models.CharField(max_length=255, verbose_name='Referencia')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='audit_logs',
+        verbose_name='Usuario',
+    )
+    timestamp = models.DateTimeField(default=timezone.now, db_index=True, verbose_name='Fecha y hora')
+    changes = models.JSONField(default=dict, blank=True, verbose_name='Cambios')
+
+    class Meta:
+        db_table = 'core_auditoria'
+        ordering = ['-timestamp', '-id']
+        verbose_name = 'Registro de auditoría'
+        verbose_name_plural = 'Registros de auditoría'
+
+    def __str__(self):
+        user_label = self.user.username if self.user_id else 'sistema'
+        return f'{self.timestamp:%Y-%m-%d %H:%M} · {user_label} · {self.get_action_display()} · {self.model_name}'
+
+
+class Shift(AuditableModel, models.Model):
     name = models.CharField(max_length=120)
     start_time = models.TimeField()
     end_time = models.TimeField()
@@ -84,7 +146,7 @@ SIZE_CHOICES = [
 ]
 
 
-class Cycle(models.Model):
+class Cycle(AuditableModel, models.Model):
     name = models.CharField(max_length=120, verbose_name='Nombre')
     slug = models.SlugField(max_length=40, unique=True, editable=False)
     is_active = models.BooleanField(default=True, verbose_name='Activo')
@@ -129,7 +191,7 @@ def valid_cycle_id(value):
     return ''
 
 
-class Student(models.Model):
+class Student(AuditableModel, models.Model):
     ENROLLMENT_STATUS_CHOICES = ENROLLMENT_STATUS_CHOICES
 
     name = models.CharField(max_length=120)
@@ -348,7 +410,7 @@ class Student(models.Model):
         return str(self.shift)
 
 
-class Membership(models.Model):
+class Membership(AuditableModel, models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='memberships')
     start_date = models.DateField()
     end_date = models.DateField()
@@ -402,10 +464,11 @@ class Membership(models.Model):
             )
 
 
-class Attendance(models.Model):
+class Attendance(AuditableModel, models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='attendance')
     date = models.DateField()
     status = models.CharField(max_length=10, choices=ATTENDANCE_STATUS_CHOICES, default='present')
+    created_at = models.DateTimeField(default=timezone.now, verbose_name='Creado el')
 
     class Meta:
         ordering = ['-date']
@@ -415,7 +478,7 @@ class Attendance(models.Model):
         return f"{self.student.name} - {self.date} - {self.get_status_display()}"
 
 
-class Payment(models.Model):
+class Payment(AuditableModel, models.Model):
     membership = models.ForeignKey(
         Membership,
         on_delete=models.CASCADE,
@@ -427,6 +490,7 @@ class Payment(models.Model):
     date = models.DateField(default=timezone.now)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='efectivo')
+    created_at = models.DateTimeField(default=timezone.now, verbose_name='Creado el')
 
     class Meta:
         ordering = ['-date']
@@ -442,7 +506,7 @@ class Payment(models.Model):
         return f"{self.student.name} - {self.amount} - {self.date}"
 
 
-class Sale(models.Model):
+class Sale(AuditableModel, models.Model):
     name = models.CharField(max_length=200, verbose_name='Nombre')
     shift = models.ForeignKey(
         Shift,
@@ -483,7 +547,7 @@ class Sale(models.Model):
         return timezone.localdate()
 
 
-class Expense(models.Model):
+class Expense(AuditableModel, models.Model):
     date = models.DateField(default=timezone.now, verbose_name='Fecha')
     concept = models.CharField(max_length=200, verbose_name='Concepto')
     provider = models.CharField(max_length=200, blank=True, verbose_name='Proveedor')
@@ -496,7 +560,6 @@ class Expense(models.Model):
     )
     observations = models.TextField(blank=True, verbose_name='Observaciones')
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-date', '-created_at']
@@ -507,7 +570,7 @@ class Expense(models.Model):
         return f'{self.date} - {self.concept} - S/ {self.amount}'
 
 
-class UserProfile(models.Model):
+class UserProfile(AuditableModel, models.Model):
     ROLE_CHOICES = [
         ('admin', 'Administrador'),
         ('secretary', 'Secretario'),
