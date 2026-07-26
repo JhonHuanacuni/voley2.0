@@ -446,6 +446,50 @@ class Membership(AuditableModel, models.Model):
         self.status = 'completed' if paid >= due else 'debt'
         self.save(update_fields=['status'])
 
+    @property
+    def expiry_info(self):
+        """Días restantes para vencer según el periodo de esta membresía."""
+        from datetime import timedelta
+
+        today = timezone.localdate()
+        start, end = self.start_date, self.end_date
+        if not end:
+            return {'days': None, 'label': 'Sin fecha', 'color': 'secondary'}
+        if not start:
+            start = end - timedelta(days=30)
+
+        total_days = max((end - start).days, 1)
+
+        if today > end:
+            days_left = (end - today).days
+            label = f'Vencida hace {abs(days_left)} día{"s" if abs(days_left) != 1 else ""}'
+            color = 'danger'
+        elif today < start:
+            days_left = (end - start).days
+            days_until_start = (start - today).days
+            if days_left == 0:
+                label = 'Inicia hoy'
+            else:
+                label = f'{days_left} día{"s" if days_left != 1 else ""} (inicia en {days_until_start}d)'
+            color = 'success'
+        else:
+            days_left = (end - today).days
+            if days_left == 0:
+                label = 'Vence hoy'
+                color = 'danger'
+            else:
+                label = f'{days_left} día{"s" if days_left != 1 else ""}'
+                elapsed = (today - start).days
+                progress = min(max(elapsed / total_days, 0), 1)
+                if progress < 1 / 3:
+                    color = 'success'
+                elif progress < 2 / 3:
+                    color = 'warning'
+                else:
+                    color = 'danger'
+
+        return {'days': days_left, 'label': label, 'color': color}
+
     @staticmethod
     def sync_student_dates(student):
         """Mantiene membership_start/end del alumno alineados con sus membresías reales."""

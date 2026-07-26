@@ -230,6 +230,23 @@ def _latest_membership(student):
     return student.memberships.order_by('-end_date', '-created_at').first()
 
 
+def _latest_membership_ids_for_students(student_ids):
+    if not student_ids:
+        return set()
+    latest_ids = set()
+    seen = set()
+    rows = (
+        Membership.objects.filter(student_id__in=student_ids)
+        .order_by('student_id', '-end_date', '-created_at')
+        .values_list('id', 'student_id')
+    )
+    for membership_id, student_id in rows:
+        if student_id not in seen:
+            seen.add(student_id)
+            latest_ids.add(membership_id)
+    return latest_ids
+
+
 def _create_renewed_membership(old):
     default_start = old.end_date + timedelta(days=1) if old.end_date >= date.today() else date.today()
     default_end = _default_renew_end(default_start)
@@ -346,6 +363,8 @@ def _register_student_payment(student, amount, payment_date, method, confirm_new
 def membership_list(request):
     memberships, filter_ctx = _apply_membership_list_filters(_membership_queryset(), request)
     page_obj, per_page = _paginate(memberships, request)
+    student_ids = list({m.student_id for m in page_obj})
+    latest_membership_ids = _latest_membership_ids_for_students(student_ids)
 
     return render(request, 'core/memberships/list.html', {
         'page_obj': page_obj,
@@ -353,6 +372,7 @@ def membership_list(request):
         'page_sizes': PAGE_SIZES,
         'list_query': urlencode(_membership_list_query_params(request)),
         'cycle_choices': active_cycle_choices(),
+        'latest_membership_ids': latest_membership_ids,
         'is_secretary': _is_secretary(request.user),
         **filter_ctx,
     })
@@ -366,11 +386,13 @@ def membership_create(request):
         Membership.sync_student_dates(membership.student)
         return redirect('memberships_list')
     page_obj, per_page = _paginate(_membership_queryset(), request)
+    student_ids = list({m.student_id for m in page_obj})
     return render(request, 'core/memberships/list.html', {
         'page_obj': page_obj,
         'per_page': per_page,
         'form': form,
         'create_mode': True,
+        'latest_membership_ids': _latest_membership_ids_for_students(student_ids),
         'is_secretary': _is_secretary(request.user),
         **_membership_list_filter_defaults(),
     })
@@ -386,12 +408,14 @@ def membership_edit(request, membership_id):
         Membership.sync_student_dates(membership.student)
         return redirect('memberships_list')
     page_obj, per_page = _paginate(_membership_queryset(), request)
+    student_ids = list({m.student_id for m in page_obj})
     return render(request, 'core/memberships/list.html', {
         'page_obj': page_obj,
         'per_page': per_page,
         'form': form,
         'membership': membership,
         'edit_mode': True,
+        'latest_membership_ids': _latest_membership_ids_for_students(student_ids),
         'is_secretary': _is_secretary(request.user),
         **_membership_list_filter_defaults(),
     })

@@ -66,6 +66,7 @@
                         <th>Pagado</th>
                         <th>Saldo</th>
                         <th>Estado</th>
+                        <th>Días para venc.</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -87,6 +88,13 @@
                             <span class="badge badge-warning">Deuda</span>
                             {% endif %}
                         </td>
+                        <td>
+                            {% if m.id in latest_membership_ids %}
+                            {% with info=m.expiry_info %}
+                            <span class="badge badge-{{ info.color }} px-2 py-2">{{ info.label }}</span>
+                            {% endwith %}
+                            {% else %}—{% endif %}
+                        </td>
                         <td class="text-nowrap">
                             <a class="btn btn-sm btn-info" href="{% url 'membership_edit' m.id %}">Editar</a>
                             <a class="btn btn-sm btn-primary d-none" href="{% url 'membership_renew' m.id %}">Renovar</a>
@@ -100,7 +108,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="10">No hay membresías registradas.</td></tr>
+                    <tr><td colspan="11">No hay membresías registradas.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
