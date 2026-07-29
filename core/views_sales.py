@@ -9,6 +9,7 @@ from django.db.models import Sum
 
 from .forms import SaleForm
 from .models import Sale
+from .permissions import ensure_can_modify, is_secretary
 from .receipt_pdf import fill_sale_receipt
 
 PAGE_SIZES = (10, 20, 50)
@@ -46,8 +47,14 @@ def sales_list(request):
     sale_to_edit = None
     edit_id = request.GET.get('edit') or request.POST.get('edit_id')
 
+    if edit_id and is_secretary(request.user):
+        return redirect('sales_list')
+
     if request.method == 'POST':
         if edit_id:
+            denied = ensure_can_modify(request, redirect_to='sales_list')
+            if denied:
+                return denied
             sale_to_edit = get_object_or_404(Sale, pk=edit_id)
         form = SaleForm(request.POST, instance=sale_to_edit)
         if form.is_valid():
@@ -77,6 +84,9 @@ def sales_list(request):
 
 @login_required(login_url='login')
 def sale_delete(request, sale_id):
+    denied = ensure_can_modify(request, redirect_to='sales_list')
+    if denied:
+        return denied
     sale = get_object_or_404(Sale, pk=sale_id)
     if request.method == 'POST':
         sale.delete()

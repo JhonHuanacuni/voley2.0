@@ -23,7 +23,8 @@ from django.utils import timezone
 
 from .forms import PaymentForm, ShiftForm, StudentForm
 from .models import Attendance, Expense, Membership, Payment, Sale, Shift, Student, active_cycle_choices, valid_cycle_id
-from .payment_permissions import mark_payment_receipt_issued, payment_can_edit
+from .payment_permissions import mark_payment_receipt_issued
+from .permissions import ensure_admin as _ensure_admin, ensure_can_modify, get_user_role
 from .receipt_pdf import fill_payment_receipt
 from .time_utils import local_datetime_from
 from .attendance_matrix_export import build_attendance_matrix_workbook
@@ -71,22 +72,6 @@ def _student_debt(student):
     expected = float(student.monthly_fee) * months
     debt = max(0, expected - float(paid))
     return {'debt': debt, 'expected_total': expected, 'paid_total': paid, 'months': months}
-
-
-def get_user_role(user):
-    if not user.is_authenticated:
-        return None
-    if user.is_superuser:
-        return 'admin'
-    profile = getattr(user, 'userprofile', None)
-    if profile is not None:
-        return profile.role
-    return 'secretary'
-
-
-def _ensure_admin(request):
-    if get_user_role(request.user) != 'admin':
-        return redirect('dashboard')
 
 
 def login_view(request):
@@ -394,6 +379,9 @@ def student_create(request):
 
 @login_required(login_url='login')
 def student_edit(request, student_id):
+    denied = ensure_can_modify(request, redirect_to='students_list')
+    if denied:
+        return denied
     student = get_object_or_404(Student, pk=student_id)
     form = StudentForm(request.POST or None, instance=student)
     if request.method == 'POST' and form.is_valid():
@@ -420,6 +408,9 @@ def student_edit(request, student_id):
 
 @login_required(login_url='login')
 def student_delete(request, student_id):
+    denied = ensure_can_modify(request, redirect_to='students_list')
+    if denied:
+        return denied
     student = get_object_or_404(Student, pk=student_id)
     student.delete()
     return redirect('students_list')
@@ -427,6 +418,9 @@ def student_delete(request, student_id):
 
 @login_required(login_url='login')
 def student_retire(request, student_id):
+    denied = ensure_can_modify(request, redirect_to='students_list')
+    if denied:
+        return denied
     student = get_object_or_404(Student, pk=student_id)
     if request.method == 'POST':
         student.retired = True
@@ -440,6 +434,9 @@ def student_retire(request, student_id):
 
 @login_required(login_url='login')
 def student_reactivate(request, student_id):
+    denied = ensure_can_modify(request, redirect_to='retired_list')
+    if denied:
+        return denied
     student = get_object_or_404(Student, pk=student_id)
     if request.method == 'POST':
         student.retired = False
@@ -666,6 +663,9 @@ def student_qr_view(request, student_id):
 
 @login_required(login_url='login')
 def delete_attendance_record(request, attendance_id):
+    denied = ensure_can_modify(request, redirect_to='attendance')
+    if denied:
+        return denied
     attendance = get_object_or_404(Attendance, pk=attendance_id)
     if request.method == 'POST':
         attendance.delete()
@@ -740,13 +740,10 @@ def payment_create(request):
 
 @login_required(login_url='login')
 def payment_edit(request, payment_id):
+    denied = ensure_can_modify(request, redirect_to='membership_payments_list')
+    if denied:
+        return denied
     payment = get_object_or_404(Payment, pk=payment_id)
-    if get_user_role(request.user) == 'secretary' and not payment_can_edit(request.user, payment):
-        messages.warning(
-            request,
-            'Este pago ya tiene recibo emitido. Solo un administrador puede editarlo.',
-        )
-        return redirect('membership_payments_list')
     form = PaymentForm(request.POST or None, instance=payment)
     student_filter = request.GET.get('student', '') or str(payment.student_id)
     if request.method == 'POST' and form.is_valid():
@@ -782,6 +779,9 @@ def payment_edit(request, payment_id):
 
 @login_required(login_url='login')
 def payment_delete(request, payment_id):
+    denied = ensure_can_modify(request, redirect_to='membership_payments_list')
+    if denied:
+        return denied
     payment = get_object_or_404(Payment, pk=payment_id)
     payment.delete()
     return redirect('payments')
@@ -794,9 +794,10 @@ def payment_edit_redirect(request, payment_id):
 
 @login_required(login_url='login')
 def payment_delete_redirect(request, payment_id):
+    denied = ensure_can_modify(request, redirect_to='membership_payments_list')
+    if denied:
+        return denied
     payment = get_object_or_404(Payment, pk=payment_id)
-    if get_user_role(request.user) == 'secretary':
-        return redirect('membership_payments_list')
     membership_id = payment.membership_id
     payment.delete()
     if membership_id:

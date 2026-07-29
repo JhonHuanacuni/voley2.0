@@ -134,7 +134,7 @@
                                 <td>{{ item.date }}</td>
                                 <td>
                                     {{ item.get_status_display }}
-                                        {% if not is_secretary %}
+                                        {% if is_admin %}
                                         <form method="post" action="{% url 'attendance_delete' item.id %}" class="d-inline ml-2">
                                         {% csrf_token %}
                                         <input type="hidden" name="date" value="{{ selected_date }}">

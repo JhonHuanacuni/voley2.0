@@ -17,9 +17,11 @@
                         <td>{{ student.retired_at }}</td>
                         <td>{{ student.retired_reason }}</td>
                         <td>
+                            {% if is_admin %}
                             <form method="post" action="{% url 'student_reactivate' student.id %}">{% csrf_token %}
                                 <button class="btn btn-sm btn-success">Reactivar</button>
                             </form>
+                            {% else %}—{% endif %}
                         </td>
                     </tr>
                     {% empty %}

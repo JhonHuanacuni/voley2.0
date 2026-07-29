@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import SystemUserCreateForm, SystemUserUpdateForm
 from .models import UserProfile
-from .views import _ensure_admin, get_user_role
+from .permissions import ensure_admin as _ensure_admin, get_user_role
 
 
 def _users_queryset():

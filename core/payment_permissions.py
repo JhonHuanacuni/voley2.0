@@ -1,19 +1,10 @@
 from django.utils import timezone
 
-
-def is_payment_admin(user):
-    if not user or not getattr(user, 'is_authenticated', False):
-        return False
-    if user.is_superuser:
-        return True
-    from .views import get_user_role
-    return get_user_role(user) == 'admin'
+from .permissions import is_admin
 
 
 def payment_can_edit(user, payment):
-    if is_payment_admin(user):
-        return True
-    return not payment.receipt_issued_at
+    return is_admin(user)
 
 
 def mark_payment_receipt_issued(payment, user):

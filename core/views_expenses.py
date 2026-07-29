@@ -5,7 +5,7 @@ from django.urls import reverse
 
 from .forms import ExpenseForm
 from .models import Expense
-from .views import _ensure_admin
+from .permissions import ensure_admin as _ensure_admin
 
 
 def _expenses_queryset(query=''):

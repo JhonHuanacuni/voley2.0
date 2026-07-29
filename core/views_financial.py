@@ -5,7 +5,7 @@ from django.http import HttpResponse
 from django.shortcuts import redirect, render
 
 from .financial_report_export import build_financial_report_workbook, compute_financial_summary
-from .views import _ensure_admin, get_user_role
+from .permissions import ensure_admin as _ensure_admin, get_user_role
 
 
 @login_required(login_url='login')

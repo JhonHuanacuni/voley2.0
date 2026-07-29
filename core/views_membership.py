@@ -14,9 +14,9 @@ from django.utils import timezone
 
 from .forms import MembershipForm, MembershipRenewForm, PaymentCreateForm, PaymentForm
 from .models import Membership, Payment, Shift, Student, active_cycle_choices, valid_cycle_id
-from .payment_permissions import mark_payment_receipt_issued, payment_can_edit
+from .payment_permissions import mark_payment_receipt_issued
+from .permissions import ensure_can_modify, is_secretary
 from .receipt_pdf import fill_payment_receipt
-from .views import get_user_role
 
 _MEMBERSHIP_FILTER_KEYS = ('q', 'cycle', 'shift', 'date_from', 'date_to', 'per_page')
 _PAYMENT_FILTER_KEYS = ('student', 'cycle', 'shift', 'date_from', 'date_to', 'per_page')
@@ -213,10 +213,6 @@ def _payment_list_filter_defaults():
     }
 
 
-def _is_secretary(user):
-    return get_user_role(user) == 'secretary'
-
-
 def _default_renew_end(start):
     if start.month == 12:
         return start.replace(year=start.year + 1, month=1, day=start.day)
@@ -373,7 +369,7 @@ def membership_list(request):
         'list_query': urlencode(_membership_list_query_params(request)),
         'cycle_choices': active_cycle_choices(),
         'latest_membership_ids': latest_membership_ids,
-        'is_secretary': _is_secretary(request.user),
+        'is_secretary': is_secretary(request.user),
         **filter_ctx,
     })
 
@@ -393,13 +389,16 @@ def membership_create(request):
         'form': form,
         'create_mode': True,
         'latest_membership_ids': _latest_membership_ids_for_students(student_ids),
-        'is_secretary': _is_secretary(request.user),
+        'is_secretary': is_secretary(request.user),
         **_membership_list_filter_defaults(),
     })
 
 
 @login_required(login_url='login')
 def membership_edit(request, membership_id):
+    denied = ensure_can_modify(request, redirect_to='memberships_list')
+    if denied:
+        return denied
     membership = get_object_or_404(Membership, pk=membership_id)
     form = MembershipForm(request.POST or None, instance=membership)
     if request.method == 'POST' and form.is_valid():
@@ -416,15 +415,16 @@ def membership_edit(request, membership_id):
         'membership': membership,
         'edit_mode': True,
         'latest_membership_ids': _latest_membership_ids_for_students(student_ids),
-        'is_secretary': _is_secretary(request.user),
+        'is_secretary': is_secretary(request.user),
         **_membership_list_filter_defaults(),
     })
 
 
 @login_required(login_url='login')
 def membership_delete(request, membership_id):
-    if _is_secretary(request.user):
-        return redirect('memberships_list')
+    denied = ensure_can_modify(request, redirect_to='memberships_list')
+    if denied:
+        return denied
     membership = get_object_or_404(Membership, pk=membership_id)
     student = membership.student
     membership.delete()
@@ -471,7 +471,7 @@ def membership_renew(request, membership_id):
         'form': form,
         'membership': old,
         'payment_date': timezone.localdate(),
-        'is_secretary': _is_secretary(request.user),
+        'is_secretary': is_secretary(request.user),
     })
 
 
@@ -501,14 +501,15 @@ def membership_payments(request, membership_id):
         'membership': membership,
         'payments': payments,
         'form': form,
-        'is_secretary': _is_secretary(request.user),
+        'is_secretary': is_secretary(request.user),
     })
 
 
 @login_required(login_url='login')
 def membership_payment_delete(request, membership_id, payment_id):
-    if _is_secretary(request.user):
-        return redirect('membership_payments', membership_id=membership_id)
+    denied = ensure_can_modify(request, redirect_to='membership_payments_list')
+    if denied:
+        return denied
     payment = get_object_or_404(Payment, pk=payment_id, membership_id=membership_id)
     membership = payment.membership
     payment.delete()
@@ -572,24 +573,20 @@ def membership_payments_list(request):
         'form': form,
         'cycle_choices': active_cycle_choices(),
         'edit_mode': False,
-        'is_secretary': _is_secretary(request.user),
+        'is_secretary': is_secretary(request.user),
         **filter_ctx,
     })
 
 
 @login_required(login_url='login')
 def membership_payment_edit(request, payment_id):
+    denied = ensure_can_modify(request, redirect_to='membership_payments_list')
+    if denied:
+        return denied
     payment = get_object_or_404(Payment.objects.select_related('membership'), pk=payment_id)
     list_params = _filter_query_params(request, _PAYMENT_FILTER_KEYS)
     if not list_params.get('student') and payment.student_id:
         list_params['student'] = str(payment.student_id)
-
-    if _is_secretary(request.user) and not payment_can_edit(request.user, payment):
-        messages.warning(
-            request,
-            'Este pago ya tiene recibo emitido. Solo un administrador puede editarlo.',
-        )
-        return redirect(_append_query_params(reverse('membership_payments_list'), list_params))
 
     form = PaymentForm(
         request.POST or None,
@@ -615,15 +612,16 @@ def membership_payment_edit(request, payment_id):
         'payment': payment,
         'edit_mode': True,
         'cycle_choices': active_cycle_choices(),
-        'is_secretary': _is_secretary(request.user),
+        'is_secretary': is_secretary(request.user),
         **filter_ctx,
     })
 
 
 @login_required(login_url='login')
 def membership_payment_delete_global(request, payment_id):
-    if _is_secretary(request.user):
-        return redirect('membership_payments_list')
+    denied = ensure_can_modify(request, redirect_to='membership_payments_list')
+    if denied:
+        return denied
     payment = get_object_or_404(Payment, pk=payment_id)
     membership = payment.membership
     payment.delete()

@@ -62,7 +62,7 @@
                                 {% else %}
                                 <button type="button" class="btn btn-sm btn-secondary" disabled title="No hay WhatsApp del apoderado">Enviar</button>
                                 {% endif %}
-                                {% if not is_secretary %}
+                                {% if is_admin %}
                                 <form method="post" action="{% url 'membership_payment_delete' membership.id payment.id %}" class="d-inline" onsubmit="return confirm('¿Eliminar este pago?');">
                                     {% csrf_token %}
                                     <button class="btn btn-sm btn-danger" type="submit">Eliminar</button>

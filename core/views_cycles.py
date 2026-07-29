@@ -5,7 +5,7 @@ from django.urls import reverse
 
 from .forms import CycleForm
 from .models import Cycle, Student
-from .views import _ensure_admin
+from .permissions import ensure_admin as _ensure_admin
 
 
 @login_required(login_url='login')
