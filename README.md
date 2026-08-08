@@ -5,7 +5,7 @@ Aplicación web para la **Academia VITA VOLEY** (vóley formativo). Administra a
 **Producción:** [vitavoley.pythonanywhere.com](https://vitavoley.pythonanywhere.com)  
 **Repositorio:** [github.com/JhonHuanacuni/voley2.0](https://github.com/JhonHuanacuni/voley2.0)
 
----
+--- 
 
 ## Tabla de contenidos
 
