@@ -170,7 +170,9 @@ def fill_sale_receipt(sale):
 
     sale_date = sale.sale_date
     amount = f'S/ {sale.price:.2f}'
-    description = sale.name
+    description = sale.get_product_display() if sale.product else sale.name
+    if sale.product and sale.name:
+        description = f'{sale.get_product_display()} - {sale.name}'
     sale_number = str(sale.id).zfill(6)
 
     day = sale_date.strftime('%d')

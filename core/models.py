@@ -145,6 +145,16 @@ SIZE_CHOICES = [
     ('L', 'L'),
 ]
 
+SALE_PRODUCT_CHOICES = [
+    ('camiseta_deportiva', 'Camiseta deportiva'),
+    ('falda_short', 'Falda short'),
+    ('short', 'Short'),
+    ('medias', 'Medias'),
+    ('rodilleras', 'Rodilleras'),
+    ('mangas', 'Mangas'),
+    ('poleras', 'Poleras'),
+]
+
 
 class Cycle(AuditableModel, models.Model):
     name = models.CharField(max_length=120, verbose_name='Nombre')
@@ -216,6 +226,13 @@ class Student(AuditableModel, models.Model):
     )
     school = models.CharField(max_length=120, blank=True, null=True, verbose_name='Colegio')
     size = models.CharField(max_length=5, choices=SIZE_CHOICES, blank=True, null=True, verbose_name='Talla')
+    suffers_from = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name='¿Sufre de algo?',
+        help_text='Condición médica o alergia relevante',
+    )
     referral_source = models.CharField(max_length=200, blank=True, null=True, verbose_name='¿Cómo se enteró de la academia?')
     uniform_delivered = models.BooleanField(default=False, verbose_name='Se entregó uniforme')
     guardian = models.CharField(max_length=120, blank=True, null=True, verbose_name='Nombre del apoderado')
@@ -569,6 +586,13 @@ class Payment(AuditableModel, models.Model):
 
 class Sale(AuditableModel, models.Model):
     name = models.CharField(max_length=200, verbose_name='Nombre')
+    product = models.CharField(
+        max_length=40,
+        choices=SALE_PRODUCT_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name='Producto',
+    )
     shift = models.ForeignKey(
         Shift,
         on_delete=models.PROTECT,

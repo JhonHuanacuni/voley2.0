@@ -568,7 +568,7 @@ def attendance_view(request):
         for att in Attendance.objects.filter(date=selected_date)
     }
 
-    history = Attendance.objects.select_related('student').order_by('-date', 'student__name')
+    history = Attendance.objects.select_related('student', 'student__shift').order_by('-date', 'student__name')
     if history_student:
         history = history.filter(student_id=history_student)
     if history_from:
@@ -577,6 +577,7 @@ def attendance_view(request):
         history = history.filter(date__lte=history_to)
     if shift_filter:
         history = history.filter(student__shift=shift_filter)
+    history = history[:20]
 
     shift_choices = [(str(shift.id), str(shift)) for shift in Shift.objects.order_by('name')]
 

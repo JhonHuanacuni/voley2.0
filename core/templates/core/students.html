@@ -61,6 +61,7 @@
                         <th>Turno</th>
                         <th>Matrícula</th>
                         <th>Estado</th>
+                        <th>¿Sufre de algo?</th>
                         <th>Días para venc.</th>
                         <th>Acciones</th>
                     </tr>
@@ -77,6 +78,7 @@
                             <span class="badge badge-{{ debt.color }} px-2 py-2"{% if debt.balance %} title="Debe S/ {{ debt.balance|floatformat:2 }}"{% endif %}>{{ debt.label }}</span>
                             {% endwith %}
                         </td>
+                        <td>{{ student.suffers_from|default:"—" }}</td>
                         <td>
                             {% with info=student.membership_expiry_info %}
                             <span class="badge badge-{{ info.color }} px-2 py-2">{{ info.label }}</span>
@@ -96,7 +98,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="7">No se encontraron alumnas.</td></tr>
+                    <tr><td colspan="8">No se encontraron alumnas.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -196,6 +198,10 @@
                     </div>
                     <div class="col-md-6 mb-3">
                         {{ form.school.label_tag }} {{ form.school }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.suffers_from.label_tag }} {{ form.suffers_from }}
+                        {% if form.suffers_from.errors %}<div class="text-danger small">{{ form.suffers_from.errors }}</div>{% endif %}
                     </div>
 
                     <div class="col-md-6 mb-3">

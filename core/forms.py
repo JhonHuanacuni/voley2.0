@@ -11,6 +11,7 @@ from .models import (
     Membership,
     PAYMENT_METHOD_CHOICES,
     Payment,
+    SALE_PRODUCT_CHOICES,
     Sale,
     Shift,
     Student,
@@ -90,6 +91,7 @@ class StudentForm(forms.ModelForm):
             'student_condition',
             'school',
             'size',
+            'suffers_from',
             'shift',
             'address',
             'enrollment_status',
@@ -116,6 +118,10 @@ class StudentForm(forms.ModelForm):
             'student_condition': forms.Select(attrs={'class': 'form-control'}),
             'school': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Colegio'}),
             'size': forms.Select(attrs={'class': 'form-control'}),
+            'suffers_from': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej. asma, alergia, lesión',
+            }),
             'address': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Dirección', 'rows': 2}),
             'enrollment_status': forms.Select(attrs={'class': 'form-control'}),
             'monthly_fee': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Cuota mensual'}),
@@ -139,6 +145,7 @@ class StudentForm(forms.ModelForm):
             'student_condition': 'Condición del alumno',
             'school': 'Colegio',
             'size': 'Talla',
+            'suffers_from': '¿Sufre de algo?',
             'shift': 'Turno',
             'address': 'Dirección',
             'birth_date': 'Fecha de nacimiento',
@@ -546,9 +553,10 @@ class SaleForm(forms.ModelForm):
 
     class Meta:
         model = Sale
-        fields = ['name', 'shift', 'size', 'price', 'payment_method', 'observation']
+        fields = ['name', 'product', 'shift', 'size', 'price', 'payment_method', 'observation']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del producto/servicio'}),
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del comprador'}),
+            'product': forms.Select(attrs={'class': 'form-control'}),
             'size': forms.Select(attrs={'class': 'form-control'}),
             'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
             'payment_method': forms.Select(attrs={'class': 'form-control'}),
@@ -556,6 +564,7 @@ class SaleForm(forms.ModelForm):
         }
         labels = {
             'name': 'Nombre',
+            'product': 'Producto',
             'size': 'Talla',
             'price': 'Precio',
             'payment_method': 'Método de pago',
@@ -566,6 +575,7 @@ class SaleForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['shift'].queryset = Shift.objects.order_by('name')
         self.fields['size'].empty_label = 'Seleccione talla'
+        self.fields['product'].choices = [('', 'Seleccione producto')] + list(SALE_PRODUCT_CHOICES)
 
 
 class SystemUserCreateForm(forms.Form):

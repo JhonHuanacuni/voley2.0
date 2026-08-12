@@ -22,6 +22,12 @@
                 </div>
 
                 <div class="form-group col-md-6 col-lg-3 mb-3">
+                    {{ form.product.label_tag }}
+                    {{ form.product }}
+                    {% if form.product.errors %}<div class="text-danger small">{{ form.product.errors }}</div>{% endif %}
+                </div>
+
+                <div class="form-group col-md-6 col-lg-2 mb-3">
                     {{ form.shift.label_tag }}
                     {{ form.shift }}
                     {% if form.shift.errors %}<div class="text-danger small">{{ form.shift.errors }}</div>{% endif %}
@@ -78,6 +84,7 @@
                 <thead>
                     <tr>
                         <th>Nombre</th>
+                        <th>Producto</th>
                         <th>Turno</th>
                         <th>Talla</th>
                         <th>Precio</th>
@@ -90,6 +97,7 @@
                     {% for item in page_obj %}
                     <tr>
                         <td>{{ item.name }}</td>
+                        <td>{{ item.get_product_display|default:"—" }}</td>
                         <td>{{ item.shift }}</td>
                         <td>{{ item.size|default:"—" }}</td>
                         <td>S/ {{ item.price|floatformat:2 }}</td>
@@ -113,13 +121,13 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="7">No hay ventas registradas.</td></tr>
+                    <tr><td colspan="8">No hay ventas registradas.</td></tr>
                     {% endfor %}
                 </tbody>
                 {% if sales_total %}
                 <tfoot>
                     <tr class="font-weight-bold bg-light">
-                        <td colspan="3" class="text-right">TOTAL</td>
+                        <td colspan="4" class="text-right">TOTAL</td>
                         <td>S/ {{ sales_total|floatformat:2 }}</td>
                         <td colspan="3"></td>
                     </tr>
